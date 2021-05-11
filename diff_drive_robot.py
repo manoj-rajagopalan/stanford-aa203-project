@@ -1,31 +1,47 @@
 import numpy as np
-import scipy.integrate as spint
+import scipy.integrate
 
 from PyQt5 import QtGui, QtCore
 
 class DifferentialDriveRobot:
     def __init__(self, radius, wheel_radius, wheel_thickness):
-        self.radius = 50
-        self.wheel_radius = 0.2 * self.radius
+        self.radius = radius
+        self.wheel_radius = wheel_radius
         self.wheel_thickness = wheel_thickness
 
-        self.x = self.radius
-        self.y = self.radius + self.wheel_thickness
-        self.theta = 0
+        x = self.radius
+        y = self.radius + self.wheel_thickness
+        theta = 0
+        self.state = np.array([x, y, theta])
+    # /__init__()
 
-    def setPose(self, x, y, theta):
-        self.x = x
-        self.y = y
-        self.theta = theta
-    # /setPose()
+    def dynamics(self, x_y_theta, t, omega_l, omega_r, wheel_radius, baseline):
+        _, _, theta = x_y_theta
+        v = wheel_radius * 0.5 * (omega_l + omega_r)
+        x_dot = v * np.cos(theta)
+        y_dot = v * np.sin(theta)
+        theta_dot = wheel_radius / baseline * (omega_r - omega_l)
+        return np.array([x_dot, y_dot, theta_dot])
+    # /dynamics()
+
+    def applyControl(self, omega_l, omega_r, delta_t):
+        '''
+            omega_{l,r}: angular velocities of left and right wheels in rad/s
+        '''
+        self.state = scipy.integrate.odeint(self.dynamics,
+                                            self.state,
+                                            np.array([0, delta_t]),
+                                            (omega_l, omega_r, self.wheel_radius, 2 * self.radius))[1]
+    # /applyControls()
 
     # Draw this instance onto a qpainter
     def render(self, qpainter, window_height):
+        x, y, theta = self.state
         # Position
         original_transform = qpainter.worldTransform()
         transform = QtGui.QTransform()
-        transform.translate(self.x, window_height -1 -self.y)
-        transform.rotate(-self.theta * 180 / np.pi) # degrees
+        transform.translate(x, window_height -1 -y)
+        transform.rotate(-theta * 180 / np.pi) # degrees
         qpainter.setWorldTransform(transform, combine=False)
 
         # main frame

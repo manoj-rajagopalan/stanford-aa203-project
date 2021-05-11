@@ -16,27 +16,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.animate)
         self.counter = 0
 
-        t = np.arange(0, width, 10)
-        self.trajectory = np.empty((len(t), 3))
-        self.trajectory[:,0] = t
-        self.trajectory[:,1] = (height / 2) + 50 * np.sin(2 * np.pi * (t / width))
-        deriv = 50 * np.cos(2 * np.pi * (t / width)) * (2 * np.pi) / width
-        self.trajectory[:,2] = np.arctan2(deriv, np.ones(len(t)))
+        t = np.arange(0, 5, 0.1)
+        omega_l = 3.0
+        omega_r = 4.0
+        self.states = np.empty((len(t), 3))
+        self.states[0] = diff_dr_robot.state
+        for i in range(1,len(t)):
+            dt = t[i] - t[i-1]
+            if t[i] > 2.5:
+                omega_l, omega_r = omega_r, omega_l
+            diff_dr_robot.applyControl(omega_l, omega_r, dt)
+            self.states[i] = diff_dr_robot.state
+        # /for i
         
         self.diff_dr_robot = diff_dr_robot
-
-        self.timer.start(100)
+        self.timer.start(int(dt * 1000))
 
     # /__init__()
 
     def animate(self):
-        if self.counter < self.trajectory.shape[0]:
-            # palette = self.label.palette()
-            # palette.setColor(self.backgroundRole(), QtCore.Qt.white)
-            # self.label.setPalette(palette)
-            self.diff_dr_robot.setPose(*self.trajectory[self.counter,:])
+        if self.counter < self.states.shape[0]:
+            self.diff_dr_robot.state = self.states[self.counter]
             self.render()
-            # print('Rendered frame', self.counter, 'with angle', self.trajectory[self.counter,2] * 180/np.pi)
+            # print('Rendered state ', self.counter, ': ', self.states[self.counter])
             self.counter += 1
             self.update()
     # /animate()
@@ -61,8 +63,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 diff_dr_robot = diff_drive_robot.DifferentialDriveRobot(radius=50,
-                                                        wheel_radius=40,
-                                                        wheel_thickness=5)
-window = MainWindow(400, 300, diff_dr_robot)
+                                                        wheel_radius=20,
+                                                        wheel_thickness=10)
+window = MainWindow(600, 400, diff_dr_robot)
 window.show()
 app.exec_()
