@@ -1,0 +1,7 @@
+numpy
+scipy
+
+PyQt5
+
+slycot
+control
