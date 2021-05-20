@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
 import diff_drive_robot
+from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, width, height, diff_dr_robot):
@@ -66,10 +67,17 @@ class MainWindow(QtWidgets.QMainWindow):
 # /class MainWindow
 
 app = QtWidgets.QApplication(sys.argv)
-diff_dr_robot = diff_drive_robot.DifferentialDriveRobot(radius=50,
-                                                        wheel_radius=20,
-                                                        wheel_thickness=10)
-window = MainWindow(600, 400, diff_dr_robot)
+# diff_dr_robot = diff_drive_robot.DifferentialDriveRobot(radius=15,
+#                                                         wheel_radius=6,
+#                                                         wheel_thickness=3)
+diff_dr_robot = DifferentialDriveEllipseWheelRobot(baseline=250,
+                                                   left_wheel_ellipse=Ellipse(50, 10, 0),
+                                                   right_wheel_ellipse=Ellipse(50, 10, 90),
+                                                   wheel_thickness=5,
+                                                   initial_xyθ=np.array([250, 270, 0]))
+window = MainWindow(800, 600, diff_dr_robot)
 window.show()
-diff_dr_robot.goto(np.array([300, 200, np.pi/180 * 90]), 5.0)
+# diff_dr_robot.goto(np.array([500, 300, np.pi/180 * 90]), 5.0)
+diff_dr_robot.plotHistory(True)
+diff_dr_robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
 app.exec_()
