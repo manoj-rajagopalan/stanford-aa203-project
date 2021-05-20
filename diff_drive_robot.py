@@ -1,12 +1,13 @@
-import enum
 import time
 
 import numpy as np
 import scipy.integrate
+import scipy.optimize
 import control.flatsys as flatsys
 
 from PyQt5 import QtGui, QtCore
 
+from fsm_state import FsmState
 class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
     def __init__(self, r, L):
         self.r = r # wheel radius
@@ -21,12 +22,13 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
     # /__init__()
 
     def forward(self, s, u):
+        r, L = self.r, self.L
         x, y, θ = s
         ω_l, ω_r = u
-        v = self.r * 0.5 * (ω_l + ω_r)
+        v = r * 0.5 * (ω_l + ω_r)
         x_dot = v * np.cos(θ)
         y_dot = v * np.sin(θ)
-        θ_dot = (self.r / self.L) * (ω_r - ω_l)
+        θ_dot = (r / L) * (ω_r - ω_l)
         x_ddot = -y_dot * θ_dot
         y_ddot = x_dot * θ_dot
         # 'control' package calls this the 'flag'
@@ -36,13 +38,14 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
     # /flatsysForward()
 
     def reverse(self, flat_flag):
+        r, L = self.r, self.L
         x, x_dot, x_ddot = flat_flag[0]
         y, y_dot, y_ddot = flat_flag[1]
         θ = np.arctan2(y_dot, x_dot)
         v_sqr = (x_dot * x_dot) + (y_dot * y_dot)
         v = np.sqrt(v_sqr)
-        ωr_plus_ωl = (2/self.r) * v
-        ωr_minus_ωl = (self.L/self.r) * (x_dot * y_ddot - x_ddot * y_dot) / v_sqr
+        ωr_plus_ωl = (2/r) * v
+        ωr_minus_ωl = (L/r) * (x_dot * y_ddot - x_ddot * y_dot) / v_sqr
         ωr = 0.5 * (ωr_plus_ωl + ωr_minus_ωl)
         ωl = ωr_plus_ωl - ωr
         s = np.array([x, y, θ])
@@ -51,12 +54,6 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
     # /flatsysReverse()
 
 # /class DifferentialDriveRobotFlatSystem
-class FsmState(enum.IntEnum):
-    IDLE = 0
-    PLANNING = 1
-    DRIVING = 2
-# /class State
-
 
 class DifferentialDriveRobot:
     
@@ -113,10 +110,18 @@ class DifferentialDriveRobot:
 
     def goto(self, target_state, duration):
         self.fsmTransition(FsmState.PLANNING)
-        N = int(duration / 0.1)
+        N = int(duration / 0.01)
         self.timepts = np.linspace(0, duration, N)
-        traj_func = flatsys.point_to_point(self.flatsys, self.timepts, x0 = self.s, xf=target_state)
-        self.s, _ = traj_func.eval(self.timepts)
+        constraint_A = np.diag([0,0,0,1,1])
+        constraint_lb = np.array([-5,-5]) # np.array([0,0,0,-5,-5])
+        constraint_ub = np.array([ 5, 5]) # np.array([0,0,0,5,5])
+        control_extractor = lambda x,u : u
+        # constraints = [(scipy.optimize.LinearConstraint, constraint_A, constraint_lb, constraint_ub)]
+        constraints = [(scipy.optimize.NonlinearConstraint, control_extractor, constraint_lb, constraint_ub)]
+        cost = lambda x, u : np.dot(x - target_state, x - target_state) + np.dot(u,u)
+        basis = flatsys.PolyFamily(8)
+        traj_func = flatsys.point_to_point(self.flatsys, self.timepts[-1], x0 = self.s, xf=target_state, constraints=constraints, basis=basis, cost=cost)
+        self.s, u = traj_func.eval(self.timepts)
         # print('s.shape =', self.s.shape)
         self.s = self.s.T
         self.t_drive_begin = time.time()
