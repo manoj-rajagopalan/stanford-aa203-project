@@ -8,6 +8,7 @@ import control.flatsys as flatsys
 from PyQt5 import QtGui, QtCore
 
 from fsm_state import FsmState
+from ilqr import iLQR
 class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
     def __init__(self, r, L):
         self.r = r # wheel radius
@@ -65,9 +66,9 @@ class DifferentialDriveRobot:
 
         x = self.radius
         y = self.radius + self.wheel_thickness
-        theta = 0
-        self.s = np.array([x, y, theta])
-        self.t = 0 # relative time within a driving mission
+        θ = 0
+        self.s = np.array([[x, y, θ]]) # always a trajectory with >= 1 state
+        self.s_counter = 0
 
         self.flatsys = DifferentialDriveRobotFlatSystem(self.wheel_radius, 2*self.radius)
 
@@ -85,7 +86,8 @@ class DifferentialDriveRobot:
         self.fsm_state = fsm_state
     # fsmTransition()
 
-    def dynamics(self, t, s, u, params):
+    @staticmethod
+    def equationOfMotion(t, s, u, params):
         _, _, θ = s
         ω_l, ω_r = u
         r = params['r'] # wheel radius
@@ -95,23 +97,61 @@ class DifferentialDriveRobot:
         y_dot = v * np.sin(θ)
         θ_dot = (r/L) * (ω_r - ω_l)
         return np.array([x_dot, y_dot, θ_dot])
-    # /dynamics()
+    # /equationOfMotion()
 
-    def applyControl(self, delta_t, u):
-        '''
-            u: angular velocities of left and right wheels, respectively, in rad/s
-        '''
-        self.s = scipy.integrate.odeint(self.dynamics,
-                                        self.s,
-                                        np.array([0, delta_t]),
-                                        args=(u, {'r' : self.wheel_radius, 'L' : 2 * self.radius}),
-                                        tfirst=True)[1]
-    # /applyControls()
+    def transitionFunction(self, dt):
+        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u,
+                                                          params={'r': self.wheel_radius,
+                                                                  'L': 2*self.radius})
+    # /transitionFunction()
 
-    def goto(self, target_state, duration):
+    def dynamics(self, t, s, u):
+        # SciPy's odeint() needs 't' in signature
+        return self.equationOfMotion(t, s, u,
+                                     params={'r': self.wheel_radius,
+                                             'L': 2*self.radius})
+    # /dynamics
+
+    def dynamicsJacobian_state(self, s, u):
+        J_s = np.zeros((3,3))
+        J_s[0,2] = -s[1] # -y
+        J_s[1,2] =  s[0] #  x
+        return J_s
+    # /dynamicsJacobian_state()
+
+    def dynamicsJacobian_control(self, s, u):
+        J_u = np.zeros((3,2))
+        θ = s[2]
+        r = self.wheel_radius
+        L = 2 * self.radius # baseline
+        J_u[0,:].fill(r/2 * np.cos(θ))
+        J_u[1,:].fill(r/2 * np.sin(θ))
+        J_u[2,0] = -r/L
+        J_u[2,1] = r/L
+        return J_u
+    # /dynamicsJacobian_control()
+
+    def goto(self, s_goal, duration):
+        self.gotoUsingIlqr(s_goal, duration)
+    # /goto()
+
+    def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
+        N = int(duration / dt)
+        t_dummy = np.nan # not used
+        f = self.transitionFunction(dt)
+        f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
+        f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
+        s, _ = iLQR(f, f_s, f_u,
+                    self.s[-1], s_goal, N,
+                    P_N=100 * np.eye(3), Q_k=np.eye(3), R_k=0.1 * np.eye(2))
+        t = np.linspace(0,N,N+1) * dt
+        self.setTrajectory(s,t)
+    # /gotoUsingIlqr()
+
+    def gotoUsingFlatsysToolbox(self, target_state, duration):
         self.fsmTransition(FsmState.PLANNING)
         N = int(duration / 0.01)
-        self.timepts = np.linspace(0, duration, N)
+        timepts = np.linspace(0, duration, N)
         constraint_A = np.diag([0,0,0,1,1])
         constraint_lb = np.array([-5,-5]) # np.array([0,0,0,-5,-5])
         constraint_ub = np.array([ 5, 5]) # np.array([0,0,0,5,5])
@@ -121,13 +161,18 @@ class DifferentialDriveRobot:
         cost = lambda x, u : np.dot(x - target_state, x - target_state) + np.dot(u,u)
         basis = flatsys.PolyFamily(8)
         traj_func = flatsys.point_to_point(self.flatsys, self.timepts[-1], x0 = self.s, xf=target_state, constraints=constraints, basis=basis, cost=cost)
-        self.s, u = traj_func.eval(self.timepts)
+        self.s, _ = traj_func.eval(timepts)
         # print('s.shape =', self.s.shape)
-        self.s = self.s.T
+        self.setTrajectory(self.s.T)
+    # /gotoUsingFlatsysToolbox()
+
+    def setTrajectory(self, s,t):
+        self.s = s
+        self.timepts = t
         self.t_drive_begin = time.time()
         self.s_counter = 0
         self.fsmTransition(FsmState.DRIVING)
-    # /goto()
+    # /setTrajectory()
 
     # Draw this instance onto a qpainter
     def render(self, qpainter, window_height):
@@ -135,9 +180,9 @@ class DifferentialDriveRobot:
             return
         # /if
 
-        t_drive = time.time() - self.t_drive_begin
 
         if self.fsm_state == FsmState.DRIVING:
+            t_drive = time.time() - self.t_drive_begin
             while self.s_counter < len(self.s) and self.timepts[self.s_counter] < t_drive:
                 self.s_counter += 1
             #/
