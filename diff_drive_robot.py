@@ -114,8 +114,11 @@ class DifferentialDriveRobot:
 
     def dynamicsJacobian_state(self, s, u):
         J_s = np.zeros((3,3))
-        J_s[0,2] = -s[1] # -y
-        J_s[1,2] =  s[0] #  x
+        θ = s[2]
+        r = self.wheel_radius
+        v = r/2 * np.sum(u)
+        J_s[0,2] = -v * np.sin(θ)
+        J_s[1,2] =  v * np.cos(θ)
         return J_s
     # /dynamicsJacobian_state()
 
@@ -132,7 +135,7 @@ class DifferentialDriveRobot:
     # /dynamicsJacobian_control()
 
     def goto(self, s_goal, duration):
-        self.gotoUsingIlqr(s_goal, duration)
+        self.gotoUsingIlqr(s_goal, duration, dt=0.001)
     # /goto()
 
     def gotoUsingIlqr(self, s_goal, duration, dt=0.01):

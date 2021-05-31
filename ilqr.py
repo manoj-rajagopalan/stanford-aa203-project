@@ -92,11 +92,6 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k):
     num_episodes = 100
     u_convergence_tol = 1.0e-4
 
-    # Express terminal cost in standard per-stage structure
-    mat_Jss = P_N
-    vec_Js = np.zeros(n_state)
-    scalar_J0 = 0
-
     # Initialize trajectory: nominal and perturbed
     s_bar = np.zeros((N+1, n_state))
     u_bar = np.zeros((N, n_control))
@@ -112,6 +107,12 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k):
     vec_ls = np.zeros((N, n_control))
 
     for episode in range(num_episodes):
+
+        # Express terminal cost in standard per-stage structure
+        delta_sbar_N = s[N] - s_bar[N]
+        mat_Jss = 0.5 * P_N
+        vec_Js = P_N @ delta_sbar_N
+        scalar_J0 = 0.5 * np.dot(delta_sbar_N, vec_Js)
 
         # Riccati recursion
         for k in range(N-1,-1,-1):
@@ -145,8 +146,8 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k):
         if u_diff_norm < u_convergence_tol:
             break
         else:
-            s_bar = s
-            u_bar = u
+            s_bar = s.copy()
+            u_bar = u.copy()
     # /for episode
 
     return s, u
