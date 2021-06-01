@@ -54,13 +54,13 @@ diff_dr_robot = diff_drive_robot.DifferentialDriveRobot(radius=15,
                                                         wheel_radius=6,
                                                         wheel_thickness=3)
 # diff_dr_robot = DifferentialDriveEllipseWheelRobot(baseline=250,
-#                                                    left_wheel_ellipse=Ellipse(50, 10, 0),
-#                                                    right_wheel_ellipse=Ellipse(50, 10, 90),
+#                                                    left_wheel_ellipse=Ellipse(50, 10),
+#                                                    right_wheel_ellipse=Ellipse(50, 10),
 #                                                    wheel_thickness=5,
-#                                                    initial_xyθ=np.array([250, 270, 0]))
+#                                                    initial_s=np.array([250, 270, 0, 0, 90]))
 window = MainWindow(800, 600, diff_dr_robot)
 window.show()
-diff_dr_robot.goto(np.array([500, 300, np.pi/180 * 90]), 5.0)
+diff_dr_robot.goto(np.array([600, 300, np.pi/180 * 90]), 10.0)
 # diff_dr_robot.plotHistory(True)
 # diff_dr_robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
 app.exec_()

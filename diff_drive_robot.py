@@ -1,4 +1,5 @@
 import time
+from jax.dtypes import dtype
 
 import numpy as np
 import scipy.integrate
@@ -135,7 +136,7 @@ class DifferentialDriveRobot:
     # /dynamicsJacobian_control()
 
     def goto(self, s_goal, duration):
-        self.gotoUsingIlqr(s_goal, duration, dt=0.001)
+        self.gotoUsingIlqr(s_goal, duration, dt=0.002)
     # /goto()
 
     def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
@@ -144,9 +145,13 @@ class DifferentialDriveRobot:
         f = self.transitionFunction(dt)
         f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
         f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
+        P_N = 10 * np.eye(3)
+        Q_k = np.diag([1,1,0.1])
+        R_k = 1 * np.eye(2)
+        R_delta_u = 100 * np.eye(2)
         s, _ = iLQR(f, f_s, f_u,
                     self.s[-1], s_goal, N,
-                    P_N=100 * np.eye(3), Q_k=np.eye(3), R_k=0.1 * np.eye(2))
+                    P_N, Q_k, R_k, R_delta_u)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(s,t)
     # /gotoUsingIlqr()
