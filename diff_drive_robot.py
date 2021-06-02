@@ -136,7 +136,7 @@ class DifferentialDriveRobot:
     # /dynamicsJacobian_control()
 
     def goto(self, s_goal, duration):
-        self.gotoUsingIlqr(s_goal, duration, dt=0.002)
+        self.gotoUsingIlqr(s_goal, duration, dt=0.01)
     # /goto()
 
     def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
@@ -145,9 +145,9 @@ class DifferentialDriveRobot:
         f = self.transitionFunction(dt)
         f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
         f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
-        P_N = 10 * np.eye(3)
-        Q_k = np.diag([1,1,0.1])
-        R_k = 1 * np.eye(2)
+        P_N = 5000 * np.eye(3)
+        Q_k = np.diag([1,1,1])
+        R_k = 5 * np.eye(2)
         R_delta_u = 100 * np.eye(2)
         s, _ = iLQR(f, f_s, f_u,
                     self.s[-1], s_goal, N,
@@ -177,10 +177,14 @@ class DifferentialDriveRobot:
     def setTrajectory(self, s,t):
         self.s = s
         self.timepts = t
+        self.drive()
+    # /setTrajectory()
+
+    def drive(self):
         self.t_drive_begin = time.time()
         self.s_counter = 0
         self.fsmTransition(FsmState.DRIVING)
-    # /setTrajectory()
+    # /drive()
 
     # Draw this instance onto a qpainter
     def render(self, qpainter, window_height):
