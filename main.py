@@ -2,8 +2,10 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
-import diff_drive_robot
+from diff_drive_robot import DifferentialDriveRobot
 from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
+from bicycle_robot import BicycleRobot
+
 from fsm_state import FsmState
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, width, height, diff_dr_robot):
@@ -20,15 +22,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start(100) # ms
 
     # /__init__()
-
-    # def animate(self):
-    #     if self.counter < self.states.shape[0]:
-    #         self.diff_dr_robot.state = self.states[self.counter]
-    #         self.render()
-    #         # print('Rendered state ', self.counter, ': ', self.states[self.counter])
-    #         self.counter += 1
-    #         self.update()
-    # # /animate()
 
     def render(self):
         qpainter = QtGui.QPainter(self.label.pixmap())
@@ -53,22 +46,26 @@ class MainWindow(QtWidgets.QMainWindow):
 # /class MainWindow
 
 app = QtWidgets.QApplication(sys.argv)
-diff_dr_robot = diff_drive_robot.DifferentialDriveRobot(radius=15,
-                                                        wheel_radius=6,
-                                                        wheel_thickness=3)
-diff_dr_robot.reset(20, 40, 0)
 
-# diff_dr_robot = DifferentialDriveEllipseWheelRobot(baseline=250,
-#                                                    left_wheel_ellipse=Ellipse(50, 10),
-#                                                    right_wheel_ellipse=Ellipse(50, 10),
-#                                                    wheel_thickness=5)
-# diff_dr_robot.reset(250, 270, 0, 0, 90)
+# robot = diff_drive_robot.DifferentialDriveRobot(radius=15,
+#                                                 wheel_radius=6,
+#                                                 wheel_thickness=3)
+# robot.reset(20, 40, 0)
 
-window = MainWindow(800, 600, diff_dr_robot)
+# robot = DifferentialDriveEllipseWheelRobot(baseline=250,
+#                                            left_wheel_ellipse=Ellipse(50, 10),
+#                                            right_wheel_ellipse=Ellipse(50, 10),
+#                                            wheel_thickness=5)
+# robot.reset(250, 270, 0, 0, 90)
+
+robot = BicycleRobot(wheel_radius=20, baseline=60)
+robot.reset(40,40,30,30)
+
+window = MainWindow(800, 600, robot)
 window.show()
-diff_dr_robot.goto(np.array([600, 300, np.pi/180 * 179]), 5.0)
-# diff_dr_robot.plotHistory(True)
-# diff_dr_robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
+# robot.goto(np.array([600, 300, np.pi/180 * 179]), 5.0)
+# robot.plotHistory(True)
+# robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
 
 
 
