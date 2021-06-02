@@ -86,7 +86,7 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k, R_delta_u):
     R_k : control-cost coefficient per-stage
     '''
     num_episodes = 1000
-    u_convergence_tol = 1.0e-2
+    u_convergence_tol = 1.0e-1
 
     # Initialize trajectory: nominal and perturbed
     s_bar = np.zeros((N+1, n_state), dtype='float64')
