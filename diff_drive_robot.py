@@ -65,10 +65,6 @@ class DifferentialDriveRobot:
         self.wheel_radius = wheel_radius
         self.wheel_thickness = wheel_thickness
 
-        x = self.radius
-        y = self.radius + self.wheel_thickness
-        θ = 0
-        self.s = np.array([[x, y, θ]]) # always a trajectory with >= 1 state
         self.s_counter = 0
 
         self.flatsys = DifferentialDriveRobotFlatSystem(self.wheel_radius, 2*self.radius)
@@ -81,6 +77,24 @@ class DifferentialDriveRobot:
         #                                   outputs=['flat_x', 'flat_y'],
         #                                   states=['x', 'y', 'theta'])
     # /__init__()
+
+    def reset(self, x, y, θ_deg):
+        self.s = np.array([[x, y, np.deg2rad(θ_deg)]])
+    # /
+
+    def stateDim(self):
+        return 3
+    #/
+
+    def controlDim(self):
+        return 2
+    #/
+
+    def controlLimits(self):
+        u_max = np.array([30.0, 30.0]) # rad/s
+        u_min = -u_max
+        return u_min, u_max
+    # /controlLimits()
 
     def fsmTransition(self, fsm_state):
         print('State transition: ', self.fsm_state, '->', fsm_state)
@@ -112,6 +126,18 @@ class DifferentialDriveRobot:
                                      params={'r': self.wheel_radius,
                                              'L': 2*self.radius})
     # /dynamics
+
+    def applyControl(self, delta_t, s, u):
+        '''
+            u: angular velocities of left and right wheels, respectively, in rad/s
+        '''
+        s = scipy.integrate.odeint(self.dynamics,
+                                   s,
+                                   np.array([0, delta_t]),
+                                   args=(u,),
+                                   tfirst=True)[1]
+        return s
+    # /applyControls()
 
     def dynamicsJacobian_state(self, s, u):
         J_s = np.zeros((3,3))
@@ -186,6 +212,10 @@ class DifferentialDriveRobot:
         self.fsmTransition(FsmState.DRIVING)
     # /drive()
 
+    def currentPose(self):
+        return self.s[self.s_counter]
+    # /
+
     # Draw this instance onto a qpainter
     def render(self, qpainter, window_height):
         if self.fsm_state == FsmState.PLANNING:
@@ -205,11 +235,11 @@ class DifferentialDriveRobot:
             self.s_counter -= 1
         # /if
 
-        x, y, θ = self.s[self.s_counter]
+        x, y, θ = self.currentPose()
         original_transform = qpainter.worldTransform()
         transform = QtGui.QTransform()
         transform.translate(x, window_height -1 -y)
-        transform.rotate(-θ * 180 / np.pi) # degrees
+        transform.rotate(np.rad2deg(-θ)) # degrees
         qpainter.setWorldTransform(transform, combine=False)
 
         self.renderCanonical(qpainter, window_height)
