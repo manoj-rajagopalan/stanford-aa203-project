@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
 from diff_drive_robot import DifferentialDriveRobot
+from diff_drive_robot_2 import DifferentialDriveRobot2, DifferentialDriveRobot2FlatSystem
 from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
 from bicycle_robot import BicycleRobot, BicycleRobotFlatSystem
 from bicycle_robot_2 import BicycleRobot2, BicycleRobot2FlatSystem
@@ -43,7 +44,7 @@ class MainWindow(QtWidgets.QMainWindow):
         qpainter.translate(0, self.height()-1)
         qpainter.scale(1, -1)
 
-        self.diff_dr_robot.render(qpainter, self.label.height())
+        self.diff_dr_robot.render(qpainter)
 
         qpainter.end()
         self.update()
@@ -69,25 +70,32 @@ app = QtWidgets.QApplication(sys.argv)
 # robot.reset(*s0)
 # robot_flat = BicycleRobotFlatSystem(robot.r, robot.L)
 # t = np.linspace(0,10,1001)
-# s, u = robot_flat.plan(s0,
-#                        sf=np.array([600,300,90]),
-#                        timepts=t)
+# s, u = robot_flat.plan(s0, sf, t)
 # s, u = s.T, u.T
-# robot.setTrajectory(s, u[:-1], t)
+# robot.setTrajectory(t, s, u[:-1])
 # robot.gotoUsingIlqr(np.array([600,300,90]), 10)
 
-robot = BicycleRobot2(wheel_radius=20, baseline=60)
-s0 = np.array([40,40,0, 0])
-sf = np.array([100,100,179, 0])
-robot.reset(*s0)
+# robot = BicycleRobot2(wheel_radius=20, baseline=60)
+# s0 = np.array([40,40,0, 0])
+# sf = np.array([100,100,179, 0])
+# robot.reset(*s0)
 # t = np.linspace(0,10,101)
 # robot_flat = BicycleRobot2FlatSystem(robot.r, robot.L)
-# s, u = robot_flat.plan(s0,
-#                        sf=sf,
-#                        timepts=t)
+# s, u = robot_flat.plan(s0, sf, t)
 # s, u = s.T, u.T
-# robot.setTrajectory(s, u[:-1], t)
-robot.gotoUsingIlqr(sf, 10)
+# robot.setTrajectory(t, s, u[:-1])
+# robot.gotoUsingIlqr(sf, 10)
+
+robot = DifferentialDriveRobot2(radius=15, wheel_radius=6, wheel_thickness=3)
+s0 = np.array([40,40,0, 0,0])
+sf = np.array([600,300,179, 0,0])
+robot.reset(*s0)
+# t = np.linspace(0,10,101)
+# robot_flat = DifferentialDriveRobot2FlatSystem(robot.r, 2*robot.R)
+# s, u = robot_flat.plan(s0, sf, t, robot.controlLimits())
+# s, u = s.T, u.T
+# robot.setTrajectory(t, s, u[:-1])
+robot.gotoUsingIlqr(sf, 5)
 
 
 window = MainWindow(800, 600, robot)
