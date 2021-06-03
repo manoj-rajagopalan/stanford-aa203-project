@@ -4,7 +4,7 @@ import numpy as np
 
 from diff_drive_robot import DifferentialDriveRobot
 from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
-from bicycle_robot import BicycleRobot
+from bicycle_robot import BicycleRobot, BicycleRobotFlatSystem
 
 from fsm_state import FsmState
 class MainWindow(QtWidgets.QMainWindow):
@@ -19,7 +19,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.timeout.connect(self.render)
         self.counter = 0
         self.diff_dr_robot = diff_dr_robot
-        self.timer.start(100) # ms
+        self.timer.start(25) # ms
 
     # /__init__()
 
@@ -37,6 +37,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.diff_dr_robot.fsm_state == FsmState.IDLE:
             self.diff_dr_robot.drive()
         # /if
+
+        # screen coords (top left, downwards) -> math coords (bottom left, upwards)
+        qpainter.translate(0, self.height()-1)
+        qpainter.scale(1, -1)
+
         self.diff_dr_robot.render(qpainter, self.label.height())
 
         qpainter.end()
@@ -59,7 +64,16 @@ app = QtWidgets.QApplication(sys.argv)
 # robot.reset(250, 270, 0, 0, 90)
 
 robot = BicycleRobot(wheel_radius=20, baseline=60)
-robot.reset(40,40,30,30)
+s0 = np.array([40,40,0])
+robot.reset(*s0)
+# robot_flat = BicycleRobotFlatSystem(robot.r, robot.L)
+# t = np.linspace(0,10,1001)
+# s, u = robot_flat.plan(s0,
+#                        sf=np.array([600,300,90]),
+#                        timepts=t)
+# s, u = s.T, u.T
+# robot.setTrajectory(s, u[:-1], t)
+robot.gotoUsingIlqr(np.array([600,300,90]), 10)
 
 window = MainWindow(800, 600, robot)
 window.show()
