@@ -5,6 +5,7 @@ import numpy as np
 from diff_drive_robot import DifferentialDriveRobot
 from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
 from bicycle_robot import BicycleRobot, BicycleRobotFlatSystem
+from bicycle_robot_2 import BicycleRobot2, BicycleRobot2FlatSystem
 
 from fsm_state import FsmState
 class MainWindow(QtWidgets.QMainWindow):
@@ -63,9 +64,9 @@ app = QtWidgets.QApplication(sys.argv)
 #                                            wheel_thickness=5)
 # robot.reset(250, 270, 0, 0, 90)
 
-robot = BicycleRobot(wheel_radius=20, baseline=60)
-s0 = np.array([40,40,0])
-robot.reset(*s0)
+# robot = BicycleRobot(wheel_radius=20, baseline=60)
+# s0 = np.array([40,40,0])
+# robot.reset(*s0)
 # robot_flat = BicycleRobotFlatSystem(robot.r, robot.L)
 # t = np.linspace(0,10,1001)
 # s, u = robot_flat.plan(s0,
@@ -73,14 +74,26 @@ robot.reset(*s0)
 #                        timepts=t)
 # s, u = s.T, u.T
 # robot.setTrajectory(s, u[:-1], t)
-robot.gotoUsingIlqr(np.array([600,300,90]), 10)
+# robot.gotoUsingIlqr(np.array([600,300,90]), 10)
+
+robot = BicycleRobot2(wheel_radius=20, baseline=60)
+s0 = np.array([40,40,0, 0])
+sf = np.array([100,100,179, 0])
+robot.reset(*s0)
+# t = np.linspace(0,10,101)
+# robot_flat = BicycleRobot2FlatSystem(robot.r, robot.L)
+# s, u = robot_flat.plan(s0,
+#                        sf=sf,
+#                        timepts=t)
+# s, u = s.T, u.T
+# robot.setTrajectory(s, u[:-1], t)
+robot.gotoUsingIlqr(sf, 10)
+
 
 window = MainWindow(800, 600, robot)
 window.show()
 # robot.goto(np.array([600, 300, np.pi/180 * 179]), 5.0)
 # robot.plotHistory(True)
 # robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
-
-
 
 app.exec_()
