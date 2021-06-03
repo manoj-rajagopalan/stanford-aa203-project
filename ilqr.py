@@ -1,11 +1,4 @@
-from jax.core import as_named_shape
 import numpy as np
-import jax
-import jax.numpy as jnp
-import jaxlib
-
-n_state = 3
-n_control = 2
 
 def iLQR_iteration(mat_A, mat_B, 
                    mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0,
@@ -51,6 +44,8 @@ def iLQR_iteration(mat_A, mat_B,
 def stageCostComponents(Q, R, R_delta_u, s_bar, u_bar, s_goal):
     '''
     '''
+    n_state = len(s_bar)
+    n_control = len(u_bar)
     delta_sbar = s_bar - s_goal
     mat_Css = 0.5 * Q
     mat_Cus = np.zeros((n_control, n_state), dtype='float64')
@@ -87,6 +82,8 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
     '''
     num_episodes = 1000
     u_convergence_tol = 1.0e-1
+    n_state = len(s_goal)
+    n_control = R_k.shape[0]
 
     # Initialize trajectory: nominal and perturbed
     s_bar = np.zeros((N+1, n_state), dtype='float64')
