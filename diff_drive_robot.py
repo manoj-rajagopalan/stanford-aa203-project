@@ -20,7 +20,6 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
                                                                inputs=['ω_l', 'ω_r'],
                                                                outputs=['flat_x', 'flat_y'],
                                                                states=['x', 'y', 'θ'])
-
     # /__init__()
 
     def forward(self, s, u):
@@ -166,18 +165,20 @@ class DifferentialDriveRobot:
     # /goto()
 
     def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
+        self.fsmTransition(FsmState.PLANNING)
         N = int(duration / dt)
         t_dummy = np.nan # not used
         f = self.transitionFunction(dt)
         f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
         f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
         P_N = 5000 * np.eye(3)
-        Q_k = np.diag([1,1,1])
+        # Q_k = np.diag([1,1,1])
+        Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(2)
         R_delta_u = 100 * np.eye(2)
         s, _ = iLQR(f, f_s, f_u,
                     self.s[-1], s_goal, N,
-                    P_N, Q_k, R_k, R_delta_u)
+                    P_N, Q, R_k, R_delta_u)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(s,t)
     # /gotoUsingIlqr()

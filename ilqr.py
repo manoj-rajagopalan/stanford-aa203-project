@@ -63,11 +63,11 @@ def stageCostComponents(Q, R, R_delta_u, s_bar, u_bar, s_goal):
 # /stageCostComponents()
 
 
-def totalCost(s, u, s_goal, u_bar, N, P_N, Q_k, R_k, R_delta_u):
+def totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u):
     J = 0
     for k in range(N):
         delta_u = u[k] - u_bar[k]
-        J += (s[k] - s_goal) @ Q_k @ (s[k] - s_goal) \
+        J += (s[k] - s_goal) @ Q[k] @ (s[k] - s_goal) \
            + u[k] @ R_k @ u[k] \
            + delta_u @ R_delta_u @ delta_u
     # /for k
@@ -75,7 +75,7 @@ def totalCost(s, u, s_goal, u_bar, N, P_N, Q_k, R_k, R_delta_u):
     return 0.5 * J
 # /totalCost()
 
-def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k, R_delta_u):
+def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
     '''
     f: (nonlinear) dynamics function
     df_ds, df_du: Jacobian of f w.r.t. state and control
@@ -112,7 +112,7 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k, R_delta_u):
         # Riccati recursion
         for k in range(N-1,-1,-1):
             mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0 = \
-                stageCostComponents(Q_k, R_k, R_delta_u, s_bar[k], u_bar[k], s_goal)
+                stageCostComponents(Q[k], R_k, R_delta_u, s_bar[k], u_bar[k], s_goal)
             mat_A = df_ds(s_bar[k], u_bar[k])
             mat_B = df_du(s_bar[k], u_bar[k])
             mat_Ls[k], vec_ls[k], mat_Jss, vec_Js, scalar_J0 = \
@@ -129,7 +129,7 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q_k, R_k, R_delta_u):
             u[k] = u_bar[k] + delta_u
             s[k+1] = f(s[k], u[k])
         # /for k
-        J = totalCost(s, u, s_goal, u_bar, N, P_N, Q_k, R_k, R_delta_u)
+        J = totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u)
         u_diff_norm = np.max(np.abs(u - u_bar))
         print('Episode {} cost = {} |s_N - s*| = {} max |delta_u| = {}'
               .format(episode, J, np.linalg.norm(s[N]-s_goal), u_diff_norm))
