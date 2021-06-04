@@ -1,9 +1,9 @@
-from numpy.core.numeric import argwhere
-from bicycle_robot import BicycleRobot
 import numpy as np
 
 from diff_drive_robot import DifferentialDriveRobot
 from diff_drive_robot_2 import DifferentialDriveRobot2
+from bicycle_robot import BicycleRobot
+from bicycle_robot_2 import BicycleRobot2
 
 from sindy.constant_term import SindyBasisConstantTermGenerator
 from sindy.linear_terms import SindyBasisLinearTermsGenerator
@@ -75,16 +75,19 @@ def main():
     #                                wheel_thickness=3)
     # robot.reset(40, 40, 0)
 
-    robot = DifferentialDriveRobot2(radius=15,
-                                    wheel_radius=6,
-                                    wheel_thickness=3)
-    robot.reset(40, 40, 0, 0, 0)
+    # robot = DifferentialDriveRobot2(radius=15,
+    #                                 wheel_radius=6,
+    #                                 wheel_thickness=3)
+    # robot.reset(40, 40, 0, 0, 0)
 
     # robot = BicycleRobot(wheel_radius=20, baseline=60)
     # robot.reset(40, 40, 0)
 
-    n_trials = 10000
-    n_samples_per_u = 20
+    robot = BicycleRobot2(wheel_radius=20, baseline=60)
+    robot.reset(40, 40, 0, 0)
+
+    n_trials = 5000
+    n_samples_per_u = 50
     dt = 0.001
     t_data, s_data, u_data, s_dot_data = \
         generateSindyData(robot, n_trials, dt, n_samples_per_u)

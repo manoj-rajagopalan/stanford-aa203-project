@@ -85,15 +85,19 @@ def setup_bicycle_robot(s0, sf, tf):
     return robot
  # /setup_diff_drive_robot()
 
-    # robot = BicycleRobot(wheel_radius=20, baseline=60)
-    # s0 = np.array([40,40,0])
-    # robot.reset(*s0)
-    # robot_flat = BicycleRobotFlatSystem(robot.r, robot.L)
-    # t = np.linspace(0,10,1001)
+def setup_bicycle_robot_2(s0, sf, tf):
+    robot = BicycleRobot2(wheel_radius=20,
+                          baseline=60)
+    s0 = np.append(s0,0)
+    sf = np.append(sf,0)
+    robot.reset(*s0)
+    # robot_flat = BicycleRobot2FlatSystem(*robot.parameters())
+    # t = np.linspace(0, tf, 1001)
     # s, u = robot_flat.plan(s0, sf, t)
-    # s, u = s.T, u.T
-    # robot.setTrajectory(t, s, u[:-1])
-    # robot.gotoUsingIlqr(np.array([600,300,90]), 10)
+    # robot.setTrajectory(t, s, u)
+    robot.gotoUsingIlqr(sf, tf)
+    return robot
+ # /setup_diff_drive_robot()
 
 # robot = BicycleRobot2(wheel_radius=20, baseline=60)
 # s0 = np.array([40,40,0, 0])
@@ -121,7 +125,8 @@ s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, -179])
 tf = 10 # s
 # robot = setup_diff_drive_robot(s0, sf, tf)
-robot = setup_bicycle_robot(s0, sf, tf)
+# robot = setup_bicycle_robot(s0, sf, tf)
+robot = setup_bicycle_robot_2(s0, sf, tf)
 window = MainWindow(800, 600, robot)
 window.show()
 
