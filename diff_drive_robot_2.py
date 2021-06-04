@@ -103,8 +103,16 @@ class DifferentialDriveRobot2(Robot):
         return 5
     #/
 
+    def stateNames(self):
+        return 'x', 'y', 'θ', 'ω_l', 'ω_r'
+    #/
+
     def controlDim(self):
         return 2
+    #/
+
+    def controlNames(self):
+        return 'α_l', 'α_r'
     #/
 
     def controlLimits(self):
@@ -112,11 +120,6 @@ class DifferentialDriveRobot2(Robot):
         u_min = -u_max
         return (u_min, u_max)
     # /controlLimits()
-
-    def fsmTransition(self, fsm_state):
-        print('State transition: ', self.fsm_state, '->', fsm_state)
-        self.fsm_state = fsm_state
-    # fsmTransition()
 
     @staticmethod
     def equationOfMotion(t, s, u, r, L):

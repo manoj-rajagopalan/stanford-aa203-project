@@ -99,8 +99,16 @@ class DifferentialDriveRobot(Robot):
         return 3
     #/
 
+    def stateNames(self):
+        return 'x', 'y', 'θ'
+    #/
+
     def controlDim(self):
         return 2
+    #/
+
+    def controlNames(self):
+        return 'ω_l', 'ω_r'
     #/
 
     def controlLimits(self):

@@ -29,7 +29,15 @@ class Robot:
         raise NotImplementedError
     #/
 
+    def stateNames(self): # override
+        raise NotImplementedError
+    #/
+
     def controlDim(self): # override
+        raise NotImplementedError
+    #/
+
+    def controlNames(self): # oveerride
         raise NotImplementedError
     #/
 

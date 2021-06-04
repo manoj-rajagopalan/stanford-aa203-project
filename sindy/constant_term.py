@@ -16,7 +16,8 @@ class SindyBasisConstantTermGenerator:
         return B, col
     # /addToBasis()
 
-    def extractTerms(self, basis_sublist, sublist_index, basis_offset):
+    def extractTerms(self, basis_sublist, sublist_index, basis_offset,
+                     s_names, u_names):
         terms = []
         assert len(basis_sublist) > 0
         assert sublist_index == 0 # can only be first item in list

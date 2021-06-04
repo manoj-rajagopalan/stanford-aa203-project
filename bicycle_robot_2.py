@@ -87,8 +87,16 @@ class BicycleRobot2:
         return 4
     #/
 
+    def stateNames(self):
+        return 'x', 'y', 'θ', 'φ'
+    #/
+
     def controlDim(self):
         return 2
+    #/
+
+    def controlNames(self):
+        return 'v', 'φ_dot'
     #/
 
     def controlLimits(self):

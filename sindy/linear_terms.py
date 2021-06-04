@@ -24,7 +24,8 @@ class SindyBasisLinearTermsGenerator:
         return B, col
     # /addToBasis()
 
-    def extractTerms(self, basis_sublist, sublist_index, basis_offset):
+    def extractTerms(self, basis_sublist, sublist_index, basis_offset,
+                     s_names, u_names):
         terms = []
         assert len(basis_sublist) > 0
         assert basis_offset == 1 # must be the second check
@@ -33,7 +34,7 @@ class SindyBasisLinearTermsGenerator:
         while sublist_index < len(basis_sublist):
             i = basis_sublist[sublist_index] - basis_offset
             if i < self.n:
-                terms.append(f's[{i}]')
+                terms.append(s_names[i])
             else:
                 break
             # /if-else
@@ -45,7 +46,7 @@ class SindyBasisLinearTermsGenerator:
         while sublist_index < len(basis_sublist):
             i = basis_sublist[sublist_index] - basis_offset
             if i < self.m:
-                terms.append(f'u[{i}]')
+                terms.append(u_names[i])
             else:
                 break
             # /if-else

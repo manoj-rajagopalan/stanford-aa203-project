@@ -78,12 +78,20 @@ class BicycleRobot(Robot):
         return 3
     #/
 
+    def stateNames(self):
+        return 'x', 'y', 'θ'
+    #/
+
     def controlDim(self):
         return 2
     #/
 
+    def controlNames(self):
+        return 'v', 'φ'
+    #/
+
     def controlLimits(self):
-        u_max = np.array([30.0, np.deg2rad(30.0)]) # pix/s, 30 deg
+        u_max = np.array([50.0, np.deg2rad(60.0)]) # pix/s, 30 deg
         u_min = -u_max
         return u_min, u_max
     # /controlLimits()

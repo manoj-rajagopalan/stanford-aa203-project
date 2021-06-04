@@ -39,20 +39,25 @@ class SindyBasisQuadraticTermsGenerator:
         return B, col
     # /addToBasis()
 
-    def extractTerms(self, basis_sublist, sublist_index, basis_offset):
+    def extractTerms(self, basis_sublist, sublist_index, basis_offset,
+                     s_names, u_names):
         terms = []
         n_basis = len(basis_sublist)
+        if sublist_index >= n_basis:
+            return terms, sublist_index, basis_offset
+        #/
         next_index_to_match = basis_sublist[sublist_index]
         
-        next_index = lambda i, lim: basis_sublist[i] if i < len(basis_sublist) else -1
+        next_index = lambda i: basis_sublist[i] if i < len(basis_sublist) else -1
 
         # quadratic state terms
         for i in range(self.n):
             for j in range(i, self.n):
                 if basis_offset == next_index_to_match:
-                    terms.append(f's[{i}]*s[{j}]')
+                    terms.append(s_names[i] + '*' + s_names[j])
+                    # terms.append(f's[{i}]*s[{j}]')
                     sublist_index += 1
-                    next_index_to_match = next_index(sublist_index, n_basis)
+                    next_index_to_match = next_index(sublist_index)
                 #/ if
                 basis_offset += 1
             # /for j
@@ -62,9 +67,10 @@ class SindyBasisQuadraticTermsGenerator:
         for i in range(self.m):
             for j in range(i, self.m):
                 if basis_offset == next_index_to_match:
-                    terms.append(f'u[{i}]*u[{j}]')
+                    terms.append(u_names[i] + '*' + u_names[j])
+                    # terms.append(f'u[{i}]*u[{j}]')
                     sublist_index += 1
-                    next_index_to_match = next_index(sublist_index, n_basis)
+                    next_index_to_match = next_index(sublist_index)
                 #/ if
                 basis_offset += 1
             # /for j
@@ -74,9 +80,10 @@ class SindyBasisQuadraticTermsGenerator:
         for i in range(self.n):
             for j in range(self.m):
                 if basis_offset == next_index_to_match:
-                    terms.append(f's[{i}]*u[{j}]')
+                    terms.append(s_names[i] + '*' + u_names[j])
+                    # terms.append(f's[{i}]*u[{j}]')
                     sublist_index += 1
-                    next_index_to_match = next_index(sublist_index, n_basis)
+                    next_index_to_match = next_index(sublist_index)
                 #/ if
                 basis_offset += 1
             # /for j

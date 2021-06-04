@@ -1,3 +1,4 @@
+from numpy.core.numeric import argwhere
 from bicycle_robot import BicycleRobot
 import numpy as np
 
@@ -69,38 +70,44 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
 # /generateSindyBasisFunctions()
 
 def main():
-    # robot = DifferentialDriveRobot2(radius=15,
+    # robot = DifferentialDriveRobot(radius=15,
     #                                wheel_radius=6,
     #                                wheel_thickness=3)
-    # robot.reset(40, 40, 0, 0, 0)
+    # robot.reset(40, 40, 0)
 
-    robot = BicycleRobot(wheel_radius=20, baseline=60)
-    robot.reset(40, 40, 0)
+    robot = DifferentialDriveRobot2(radius=15,
+                                    wheel_radius=6,
+                                    wheel_thickness=3)
+    robot.reset(40, 40, 0, 0, 0)
 
-    n_trials = 1000
-    n_samples_per_u = 50
-    dt = 0.01
+    # robot = BicycleRobot(wheel_radius=20, baseline=60)
+    # robot.reset(40, 40, 0)
+
+    n_trials = 10000
+    n_samples_per_u = 20
+    dt = 0.001
     t_data, s_data, u_data, s_dot_data = \
         generateSindyData(robot, n_trials, dt, n_samples_per_u)
     B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data)
     indices = np.arange(B.shape[1])
     threshold = 1.0e-2
     print('Iter -1 n_basis = {}'.format(B.shape[1]))
-    for iter in range(100):
+    for iter in range(10):
         coeffs, residuals, rank, _ = np.linalg.lstsq(B, s_dot_data)
         argwhere_above_threshold = []
-        for i, coeff in enumerate(coeffs):
-            if np.linalg.norm(coeff, ord=np.inf) > threshold:
+        for i in range(coeffs.shape[0]):
+            if np.max(np.abs(coeffs[i,:])) > threshold:
                 argwhere_above_threshold.append(i)
             # /if
         # /for
         print('Iter {} rank = {} max_resid = {} n_basis = {}'
               .format(iter, rank, np.max(residuals) if len(residuals) > 0 else np.nan, len(argwhere_above_threshold)))
-        if len(argwhere_above_threshold) == len(coeffs):
-            break
+        # if len(argwhere_above_threshold) == len(coeffs):
+        #     break
         B = B[:, argwhere_above_threshold]
         indices = indices[argwhere_above_threshold]
     # /for iter
+    coeffs = coeffs[argwhere_above_threshold, :]
     
     print('Final norm = ', np.linalg.norm(s_dot_data - B@coeffs))
     print('coeffs |min|, |max| =', np.min(np.abs(coeffs)), np.max(np.abs(coeffs)))
@@ -113,8 +120,10 @@ def main():
     terms = []
     indices_idx = 0
     col = 0
+
     for gen in basis_gens:
-        gen_terms, indices_idx, col = gen.extractTerms(indices, indices_idx, col)
+        gen_terms, indices_idx, col = \
+            gen.extractTerms(indices, indices_idx, col, robot.stateNames(), robot.controlNames())
         terms += gen_terms
     # /for gen
     print('fn =', terms)
@@ -123,9 +132,9 @@ def main():
         which_terms = np.nonzero(coeffs[:,i] > threshold)[0]
         expr = ''
         for k in which_terms:
-            expr += '{}*{} + '.format(coeffs[k,i], terms[k])
+            expr += '{:.2f}*{} + '.format(coeffs[k,i], terms[k])
         #/
-        print(f's_dot[{i}] =', expr[:-3])
+        print(f'{robot.stateNames()[i]}_dot =', expr[:-3])
     # /for i
 
 # /main()

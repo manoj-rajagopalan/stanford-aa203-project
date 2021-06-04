@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.core.numeric import indices
 
 class SindyBasisSinTermsGenerator:
     def __init__(self, n_state, n_control) -> None:
@@ -7,7 +8,8 @@ class SindyBasisSinTermsGenerator:
     # /__init__()
 
     def numTerms(self):
-        return 2 * self.m * self.n
+        m_plus_n = self.m + self.n
+        return m_plus_n * m_plus_n
     #/
 
     def addToBasis(self, s, u, B, col):
@@ -15,43 +17,36 @@ class SindyBasisSinTermsGenerator:
         assert self.m == u.shape[1]
         assert (col + self.numTerms()) <= B.shape[1]
 
-        # s_i sin(u_j) terms
-        for i in range(self.n):
-            B[:, col:col+self.m] = s[:,i][:,np.newaxis] * np.sin(u)
-            col += self.m
-        # /for i
-
-        # u_i sin(s_j) terms
-        for i in range(self.m):
-            B[:, col:col+self.n] = u[:,i][:,np.newaxis] * np.sin(s)
-            col += self.n
-        # /for i
+        su = np.concatenate((s,u), axis=1)
+        m_plus_n = su.shape[1]
+        indices = np.arange(m_plus_n)
+        for i in range(m_plus_n):
+            B[:, col:col+m_plus_n] = su[:,i][:,np.newaxis] * np.sin(su)
+            col += m_plus_n
+        #/
 
         return B, col
     # /addToBasis()
 
-    def extractTerms(self, basis_sublist, sublist_index, basis_offset):
+    def extractTerms(self, basis_sublist, sublist_index, basis_offset,
+                     s_names, u_names):
         terms = []
         n_basis = len(basis_sublist)
+
+        if sublist_index >= n_basis:
+            return terms, sublist_index, basis_offset
+        #/
         next_index_to_match = basis_sublist[sublist_index]
-        
         next_index = lambda i, lim: basis_sublist[i] if i < len(basis_sublist) else -1
 
-        for i in range(self.n):
-            for j in range(self.m):
+        m_plus_n = self.m + self.n
+        for i in range(m_plus_n):
+            first = s_names[i] if i < self.n else u_names[i - self.n]
+            for j in range(m_plus_n):
+                second = s_names[j] if j < self.n else u_names[j - self.n]
                 if basis_offset == next_index_to_match:
-                    terms.append(f's[{i}]*sin(u[{j}])')
-                    sublist_index += 1
-                    next_index_to_match = next_index(sublist_index, n_basis)
-                #/
-                basis_offset += 1
-            # /for j
-        # /for i
-
-        for i in range(self.m):
-            for j in range(self.n):
-                if basis_offset == next_index_to_match:
-                    terms.append(f'u[{j}]*sin(s[{i}])')
+                    terms.append(f'{first}*sin({second})')
+                    # terms.append(f'{first}[{i}]*sin({second}[{j}])')
                     sublist_index += 1
                     next_index_to_match = next_index(sublist_index, n_basis)
                 #/
