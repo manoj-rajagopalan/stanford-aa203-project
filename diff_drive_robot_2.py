@@ -138,22 +138,6 @@ class DifferentialDriveRobot2(Robot):
         return self.r, 2*self.R
     #/
 
-    def transitionFunction(self, dt):
-        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u, self.r, 2*self.R)
-    # /transitionFunction()
-
-    def applyControl(self, delta_t, s, u):
-        '''
-            u: angular velocities of left and right wheels, respectively, in rad/s
-        '''
-        s = scipy.integrate.odeint(self.equationOfMotion,
-                                   s,
-                                   np.array([0, delta_t]),
-                                   args=tuple([u]) + self.parameters(),
-                                   tfirst=True)[1]
-        return s
-    # /applyControl()
-
     def dynamicsJacobian_state(self, s, u):
         J_s = np.zeros((self.stateDim(), self.stateDim()))
         _, _, θ, ω_l, ω_r = s

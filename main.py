@@ -99,17 +99,6 @@ def setup_bicycle_robot_2(s0, sf, tf):
     return robot
  # /setup_diff_drive_robot()
 
-# robot = BicycleRobot2(wheel_radius=20, baseline=60)
-# s0 = np.array([40,40,0, 0])
-# sf = np.array([100,100,179, 0])
-# robot.reset(*s0)
-# t = np.linspace(0,10,101)
-# robot_flat = BicycleRobot2FlatSystem(robot.r, robot.L)
-# s, u = robot_flat.plan(s0, sf, t)
-# s, u = s.T, u.T
-# robot.setTrajectory(t, s, u[:-1])
-# robot.gotoUsingIlqr(sf, 10)
-
 # robot = DifferentialDriveRobot2(radius=15, wheel_radius=6, wheel_thickness=3)
 # s0 = np.array([40,40,0, 0,0])
 # sf = np.array([600,300,179, 0,0])
