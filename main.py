@@ -9,50 +9,7 @@ from bicycle_robot import BicycleRobot, BicycleRobotFlatSystem
 from bicycle_robot_2 import BicycleRobot2, BicycleRobot2FlatSystem
 
 from fsm_state import FsmState
-class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, width, height, robot):
-        super(MainWindow, self).__init__()
-        self.label = QtWidgets.QLabel()
-        canvas = QtGui.QPixmap(width, height)
-        self.label.setPixmap(canvas)
-        self.setCentralWidget(self.label)
-
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.render)
-        self.counter = 0
-        self.robot = robot
-        self.timer.start(25) # ms
-
-    # /__init__()
-
-    def render(self):
-        qpainter = QtGui.QPainter(self.label.pixmap())
-
-        # background
-        bg_brush = QtGui.QBrush()
-        bg_brush.setColor(QtCore.Qt.white)
-        bg_brush.setStyle(QtCore.Qt.SolidPattern)
-        qpainter.setBrush(bg_brush)
-        qpainter.drawRect(0,0, self.width(), self.height())
-
-        # foreground
-        if self.robot.fsm_state == FsmState.IDLE:
-            self.robot.drive()
-        # /if
-
-        # screen coords (top left, downwards) -> math coords (bottom left, upwards)
-        qpainter.translate(0, self.height()-1)
-        qpainter.scale(1, -1)
-
-        self.robot.render(qpainter)
-
-        qpainter.end()
-        self.update()
-    # /render()
-
-# /class MainWindow
-
-app = QtWidgets.QApplication(sys.argv)
+from main_window import MainWindow
 
 def setup_diff_drive_robot(s0, sf, tf):
     robot = DifferentialDriveRobot(radius=15,
@@ -113,10 +70,12 @@ def setup_bicycle_robot_2(s0, sf, tf):
 s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, -179])
 tf = 10 # s
-# robot = setup_diff_drive_robot(s0, sf, tf)
+robot = setup_diff_drive_robot(s0, sf, tf)
 # robot = setup_bicycle_robot(s0, sf, tf)
-robot = setup_bicycle_robot_2(s0, sf, tf)
-window = MainWindow(800, 600, robot)
-window.show()
+# robot = setup_bicycle_robot_2(s0, sf, tf)
 
+app = QtWidgets.QApplication(sys.argv)
+main_window = MainWindow(800, 800, robot)
+robot.plotTrajectory(main_window.state_plot, main_window.control_plot)
+main_window.show()
 app.exec_()

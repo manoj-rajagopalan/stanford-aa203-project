@@ -137,5 +137,8 @@ class Robot:
         
     # /render()
 
+    def plotTrajectory(self, state_plot, control_plot): # override
+        raise NotImplementedError
+    #/
 #/class Robot
 

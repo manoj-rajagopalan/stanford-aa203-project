@@ -194,4 +194,16 @@ class DifferentialDriveRobot(Robot):
         qpainter.drawEllipse(QtCore.QPoint(0.75 * self.radius, 0), 0.1 * self.radius, 0.1 * self.radius)
     # /renderCanonical()
 
+    def plotTrajectory(self, state_plot, control_plot):
+        state_plot.distance_axes.set_ylabel('$x$, $y$')
+        state_plot.distance_axes.plot(self.t, self.s[:,0], 'r', label='$x$')
+        state_plot.distance_axes.plot(self.t, self.s[:,1], 'g', label='$y$')
+
+        state_plot.angle_axes.set_ylabel('$\\theta$ (deg)')
+        state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\theta$')
+
+        control_plot.angle_axes.set_ylabel('$\\omega_l$, $\\omega_r$ (deg/s)')
+        control_plot.angle_axes.plot(self.t[:-1], np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
+        control_plot.angle_axes.plot(self.t[:-1], np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
+    # /plotTrajectory()
 # /class DifferentialDriveRobot
