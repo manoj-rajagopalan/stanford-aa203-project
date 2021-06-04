@@ -108,7 +108,7 @@ class DifferentialDriveRobot2(Robot):
     #/
 
     def controlLimits(self):
-        u_max = np.array([30.0, 30.0]) # rad/s^2
+        u_max = np.array([np.pi/18, np.pi/18]) # 10 deg/s^2
         u_min = -u_max
         return (u_min, u_max)
     # /controlLimits()
