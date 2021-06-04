@@ -1,6 +1,13 @@
 import numpy as np
 
 from diff_drive_robot import DifferentialDriveRobot
+from diff_drive_robot_2 import DifferentialDriveRobot2
+
+from sindy.constant_term import SindyBasisConstantTermGenerator
+from sindy.linear_terms import SindyBasisLinearTermsGenerator
+from sindy.quadratic_terms import SindyBasisQuadraticTermsGenerator
+from sindy.sin_terms import SindyBasisSinTermsGenerator
+from sindy.cos_terms import SindyBasisCosTermsGenerator
 
 def generateSindyData(robot, n_trials, dt, n_samples_per_u=5):
     n_state = robot.stateDim()
@@ -35,36 +42,42 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
     N = len(t_data)
     assert N == len(s_data)
     assert N == len(u_data)
+    n = s_data.shape[1]
+    m = u_data.shape[1]
 
-    su_data = np.concatenate((s_data, u_data), axis=1)
-    B = np.ones((N,1), dtype='float64')
-    B = np.concatenate((B, su_data), axis=1)
-    indices = list(range(su_data.shape[1]))
-    sin_su_data = np.sin(su_data)
-    cos_su_data = np.cos(su_data)
-    B = np.concatenate((B, sin_su_data), axis=1)
-    B = np.concatenate((B, cos_su_data), axis=1)
-    for i in range(len(indices)):
-        B = np.concatenate((B, su_data * su_data[:, indices]), axis=1)
-        B = np.concatenate((B, su_data * sin_su_data[:, indices]), axis=1)
-        B = np.concatenate((B, su_data * cos_su_data[:, indices]), axis=1)
-        indices = np.roll(indices, -1)
-    # /for i
-    return B
+    basis_gens = [
+        SindyBasisConstantTermGenerator(),
+        SindyBasisLinearTermsGenerator(n,m),
+        SindyBasisQuadraticTermsGenerator(n,m),
+        SindyBasisSinTermsGenerator(n,m),
+        SindyBasisCosTermsGenerator(n,m)
+    ]
+
+    B_cols = sum(map(lambda gen: gen.numTerms(), basis_gens))
+
+    B = np.empty((N, B_cols), dtype=np.float64)
+    col = 0
+    for gen in basis_gens:
+        B, col = gen.addToBasis(s_data, u_data, B, col)
+    #/
+
+    assert col == B.shape[1]    
+    return B, basis_gens
 # /generateSindyBasisFunctions()
 
 def main():
-    robot = DifferentialDriveRobot(radius=15,
+    robot = DifferentialDriveRobot2(radius=15,
                                    wheel_radius=6,
                                    wheel_thickness=3)
-    robot.reset(20, 40, 0)
+    robot.reset(20, 40, 0, 0, 0)
     n_trials = 1000
     n_samples_per_u = 5
     dt = 0.01
     t_data, s_data, u_data, s_dot_data = \
         generateSindyData(robot, n_trials, dt, n_samples_per_u)
-    B = generateSindyBasisFunctions(t_data, s_data, u_data)
-    threshold = 1.0e-3
+    B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data)
+    indices = np.arange(B.shape[1])
+    threshold = 1.0e-2
     print('Iter -1 n_basis = {}'.format(B.shape[1]))
     for iter in range(100):
         coeffs, residuals, rank, _ = np.linalg.lstsq(B, s_dot_data)
@@ -79,9 +92,35 @@ def main():
         if len(argwhere_above_threshold) == len(coeffs):
             break
         B = B[:, argwhere_above_threshold]
+        indices = indices[argwhere_above_threshold]
     # /for iter
     
     print('Final norm = ', np.linalg.norm(s_dot_data - B@coeffs))
+    print('coeffs |min|, |max| =', np.min(np.abs(coeffs)), np.max(np.abs(coeffs)))
+    print('indices =', indices)
+    assert len(indices) > 0
+
+    n_state = s_data.shape[1]
+    n_control = u_data.shape[1]
+
+    terms = []
+    indices_idx = 0
+    col = 0
+    for gen in basis_gens:
+        gen_terms, indices_idx, col = gen.extractTerms(indices, indices_idx, col)
+        terms += gen_terms
+    # /for gen
+    print('fn =', terms)
+
+    for i in range(n_state):
+        which_terms = np.nonzero(coeffs[:,i] > threshold)[0]
+        expr = ''
+        for k in which_terms:
+            expr += '{}*{} + '.format(coeffs[k,i], terms[k])
+        #/
+        print(f's_dot[{i}] =', expr[:-3])
+    # /for i
+
 # /main()
 
 if __name__ == "__main__":
