@@ -70,10 +70,10 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
 # /generateSindyBasisFunctions()
 
 def main():
-    # robot = DifferentialDriveRobot(radius=15,
-    #                                wheel_radius=6,
-    #                                wheel_thickness=3)
-    # robot.reset(40, 40, 0)
+    robot = DifferentialDriveRobot(radius=15,
+                                   wheel_radius=6,
+                                   wheel_thickness=3)
+    robot.reset(40, 40, 0)
 
     # robot = DifferentialDriveRobot2(radius=15,
     #                                 wheel_radius=6,
@@ -83,11 +83,11 @@ def main():
     # robot = BicycleRobot(wheel_radius=20, baseline=60)
     # robot.reset(40, 40, 0)
 
-    robot = BicycleRobot2(wheel_radius=20, baseline=60)
-    robot.reset(40, 40, 0, 0)
+    # robot = BicycleRobot2(wheel_radius=20, baseline=60)
+    # robot.reset(40, 40, 0, 0)
 
     n_trials = 5000
-    n_samples_per_u = 50
+    n_samples_per_u = 10
     dt = 0.001
     t_data, s_data, u_data, s_dot_data = \
         generateSindyData(robot, n_trials, dt, n_samples_per_u)
@@ -140,7 +140,40 @@ def main():
         print(f'{robot.stateNames()[i]}_dot =', expr[:-3])
     # /for i
 
+    createDynamicsPythonModule('DifferentialDriveRobot',
+                                robot.stateNames(), robot.controlNames(),
+                                terms, coeffs,
+                                threshold)
+
 # /main()
+
+def createDynamicsPythonModule(name,
+                               state_names, control_names,
+                               terms, coeffs,
+                               threshold=1.0e-3):
+    with open(f'SINDy_{name}.py', 'w') as f:
+        print('import numpy as np', file=f)
+        print('', file=f)
+        print(f'def dynamics(t, s, u):', file=f)
+        n_state = len(state_names)
+        n_control = len(control_names)
+        print('\t' + ', '.join(state_names) + ' = s', file=f)
+        print('\t' + ', '.join(control_names) + ' = u', file=f)
+        for i in range(n_state):
+            which_terms = np.nonzero(coeffs[:,i] > threshold)[0]
+            expr = ''
+            for k in which_terms:
+                expr += '{:.2f}*{} + '.format(coeffs[k,i], terms[k])
+            #/
+            expr = expr.replace('cos(', 'np.cos(')
+            expr = expr.replace('sin(', 'np.sin(')
+            expr = expr.replace('tan(', 'np.tan(')
+            print(f'\t{state_names[i]}_dot =', expr[:-3], file=f)
+        # /for i
+        print('\treturn np.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
+        print('# /dynamics()', file=f)
+        print('', file=f)
+# /createDynamicsPythonModule
 
 if __name__ == "__main__":
     main()
