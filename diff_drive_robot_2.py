@@ -146,10 +146,10 @@ class DifferentialDriveRobot2(Robot):
         s = scipy.integrate.odeint(self.equationOfMotion,
                                    s,
                                    np.array([0, delta_t]),
-                                   args=(u) + self.parameters(),
+                                   args=tuple([u]) + self.parameters(),
                                    tfirst=True)[1]
         return s
-    # /applyControls()
+    # /applyControl()
 
     def dynamicsJacobian_state(self, s, u):
         J_s = np.zeros((self.stateDim(), self.stateDim()))
