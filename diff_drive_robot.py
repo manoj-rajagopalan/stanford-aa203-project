@@ -1,10 +1,10 @@
 import time
+import copy
 
 import numpy as np
 import scipy.integrate
 import scipy.optimize
 import control.flatsys as flatsys
-
 from PyQt5 import QtGui, QtCore
 
 from robot import Robot
@@ -36,7 +36,7 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
         flat_flag = [np.array([x, x_dot, x_ddot]),
                      np.array([y, y_dot, y_ddot])]
         return flat_flag
-    # /flatsysForward()
+    # /forward()
 
     def reverse(self, flat_flag):
         r, L = self.r, self.L
@@ -52,7 +52,31 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
         s = np.array([x, y, θ])
         u = np.array([ωl, ωr])
         return s, u
-    # /flatsysReverse()
+    # /reverse()
+
+    def plan(self, s0, sf, timepts):
+        N = len(timepts)
+        x0 = copy.deepcopy(s0)
+        x0[2] = np.deg2rad(s0[2])
+        xf = copy.deepcopy(sf)
+        xf[2] = np.deg2rad(sf[2])
+        constraints = None
+        # constraint_A = [np.diag([0,0,0,1,1])] * N
+        # constraint_lb = [np.array([0,0,0,-5,-5])] * N
+        # constraint_ub = [np.array([0,0,0, 5, 5])] * N
+        # constraints = [(scipy.optimize.LinearConstraint, constraint_A, constraint_lb, constraint_ub)]
+        # control_extractor = lambda x,u : u
+        # constraint_lb = [np.array([-5,-5])] * N
+        # constraint_ub = [np.array([ 5, 5])] * N
+        # constraints = [(scipy.optimize.NonlinearConstraint, control_extractor, constraint_lb, constraint_ub)]
+        cost = None
+        # cost = lambda x, u : np.dot(x - target_state, x - target_state) + np.dot(u,u)
+        basis = None
+        # basis = flatsys.PolyFamily(8)
+        traj_func = flatsys.point_to_point(self, timepts, x0=x0, xf=xf, constraints=constraints, cost=cost, basis=basis)
+        s, u = traj_func.eval(timepts)
+        return s.T, u.T[:-1]
+    # /plan()
 
 # /class DifferentialDriveRobotFlatSystem
 
@@ -122,10 +146,6 @@ class DifferentialDriveRobot(Robot):
         return J_u
     # /dynamicsJacobian_control()
 
-    def goto(self, s_goal, duration):
-        self.gotoUsingIlqr(s_goal, duration, dt=0.01)
-    # /goto()
-
     def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
         self.fsmTransition(FsmState.PLANNING)
         N = int(duration / dt)
@@ -144,24 +164,6 @@ class DifferentialDriveRobot(Robot):
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(t, s, u)
     # /gotoUsingIlqr()
-
-    def gotoUsingFlatsysToolbox(self, target_state, duration):
-        self.fsmTransition(FsmState.PLANNING)
-        N = int(duration / 0.01)
-        timepts = np.linspace(0, duration, N)
-        constraint_A = np.diag([0,0,0,1,1])
-        constraint_lb = np.array([-5,-5]) # np.array([0,0,0,-5,-5])
-        constraint_ub = np.array([ 5, 5]) # np.array([0,0,0,5,5])
-        control_extractor = lambda x,u : u
-        # constraints = [(scipy.optimize.LinearConstraint, constraint_A, constraint_lb, constraint_ub)]
-        constraints = [(scipy.optimize.NonlinearConstraint, control_extractor, constraint_lb, constraint_ub)]
-        cost = lambda x, u : np.dot(x - target_state, x - target_state) + np.dot(u,u)
-        basis = flatsys.PolyFamily(8)
-        traj_func = flatsys.point_to_point(self.flatsys, self.timepts[-1], x0 = self.s, xf=target_state, constraints=constraints, basis=basis, cost=cost)
-        self.s, _ = traj_func.eval(timepts)
-        # print('s.shape =', self.s.shape)
-        self.setTrajectory(self.s.T)
-    # /gotoUsingFlatsysToolbox()
 
     # Draw this instance onto a qpainter
     def renderCanonical(self, qpainter):

@@ -2,7 +2,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
-from diff_drive_robot import DifferentialDriveRobot
+from diff_drive_robot import DifferentialDriveRobot, DifferentialDriveRobotFlatSystem
 from diff_drive_robot_2 import DifferentialDriveRobot2, DifferentialDriveRobot2FlatSystem
 from diff_drive_ellipse_wheel_robot import Ellipse, DifferentialDriveEllipseWheelRobot
 from bicycle_robot import BicycleRobot, BicycleRobotFlatSystem
@@ -59,7 +59,11 @@ def setup_diff_drive_robot(s0, sf, tf):
                                    wheel_radius=6,
                                    wheel_thickness=3)
     robot.reset(*s0)
-    robot.gotoUsingIlqr(sf, tf)
+    robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
+    t = np.linspace(0, tf, 1001)
+    s, u = robot_flat.plan(s0, sf, t)
+    robot.setTrajectory(t, s, u)
+    # robot.gotoUsingIlqr(sf, tf)
     return robot
  # /setup_diff_drive_robot()
 
