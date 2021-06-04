@@ -10,7 +10,7 @@ from bicycle_robot_2 import BicycleRobot2, BicycleRobot2FlatSystem
 
 from fsm_state import FsmState
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, width, height, diff_dr_robot):
+    def __init__(self, width, height, robot):
         super(MainWindow, self).__init__()
         self.label = QtWidgets.QLabel()
         canvas = QtGui.QPixmap(width, height)
@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.render)
         self.counter = 0
-        self.diff_dr_robot = diff_dr_robot
+        self.robot = robot
         self.timer.start(25) # ms
 
     # /__init__()
@@ -36,15 +36,15 @@ class MainWindow(QtWidgets.QMainWindow):
         qpainter.drawRect(0,0, self.width(), self.height())
 
         # foreground
-        if self.diff_dr_robot.fsm_state == FsmState.IDLE:
-            self.diff_dr_robot.drive()
+        if self.robot.fsm_state == FsmState.IDLE:
+            self.robot.drive()
         # /if
 
         # screen coords (top left, downwards) -> math coords (bottom left, upwards)
         qpainter.translate(0, self.height()-1)
         qpainter.scale(1, -1)
 
-        self.diff_dr_robot.render(qpainter)
+        self.robot.render(qpainter)
 
         qpainter.end()
         self.update()
@@ -54,10 +54,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 
-# robot = diff_drive_robot.DifferentialDriveRobot(radius=15,
-#                                                 wheel_radius=6,
-#                                                 wheel_thickness=3)
-# robot.reset(20, 40, 0)
+def setup_diff_drive_robot(s0, sf, tf):
+    robot = DifferentialDriveRobot(radius=15,
+                                   wheel_radius=6,
+                                   wheel_thickness=3)
+    robot.reset(*s0)
+    robot.gotoUsingIlqr(sf, tf)
+    return robot
+ # /setup_diff_drive_robot()
 
 # robot = DifferentialDriveEllipseWheelRobot(baseline=250,
 #                                            left_wheel_ellipse=Ellipse(50, 10),
@@ -86,22 +90,22 @@ app = QtWidgets.QApplication(sys.argv)
 # robot.setTrajectory(t, s, u[:-1])
 # robot.gotoUsingIlqr(sf, 10)
 
-robot = DifferentialDriveRobot2(radius=15, wheel_radius=6, wheel_thickness=3)
-s0 = np.array([40,40,0, 0,0])
-sf = np.array([600,300,179, 0,0])
-robot.reset(*s0)
+# robot = DifferentialDriveRobot2(radius=15, wheel_radius=6, wheel_thickness=3)
+# s0 = np.array([40,40,0, 0,0])
+# sf = np.array([600,300,179, 0,0])
+# robot.reset(*s0)
 # t = np.linspace(0,10,101)
 # robot_flat = DifferentialDriveRobot2FlatSystem(robot.r, 2*robot.R)
 # s, u = robot_flat.plan(s0, sf, t, robot.controlLimits())
 # s, u = s.T, u.T
 # robot.setTrajectory(t, s, u[:-1])
-robot.gotoUsingIlqr(sf, 5)
+# robot.gotoUsingIlqr(sf, 5)
 
-
+s0 = np.array([40, 40, 0])
+sf = np.array([600, 300, -179])
+tf = 10 # s
+robot = setup_diff_drive_robot(s0, sf, tf)
 window = MainWindow(800, 600, robot)
 window.show()
-# robot.goto(np.array([600, 300, np.pi/180 * 179]), 5.0)
-# robot.plotHistory(True)
-# robot.go(np.array([[60,60]]) * np.pi/180, np.array([15]))
 
 app.exec_()

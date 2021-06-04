@@ -1,5 +1,4 @@
 import time
-from jax.dtypes import dtype
 
 import numpy as np
 import scipy.integrate
@@ -8,6 +7,7 @@ import control.flatsys as flatsys
 
 from PyQt5 import QtGui, QtCore
 
+from robot import Robot
 from fsm_state import FsmState
 from ilqr import iLQR
 class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
@@ -56,25 +56,15 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
 
 # /class DifferentialDriveRobotFlatSystem
 
-class DifferentialDriveRobot:
+class DifferentialDriveRobot(Robot):
     
     def __init__(self, radius, wheel_radius, wheel_thickness):
-        self.fsm_state = FsmState.IDLE
+        super(DifferentialDriveRobot, self).__init__()
         self.radius = radius
         self.wheel_radius = wheel_radius
         self.wheel_thickness = wheel_thickness
 
-        self.s_counter = 0
-
         self.flatsys = DifferentialDriveRobotFlatSystem(self.wheel_radius, 2*self.radius)
-
-        # self.flatsys = flatsys.FlatSystem(self.flatsysForward,
-        #                                   self.flatsysReverse,
-        #                                   updfcn=self.dynamics,
-        #                                   params={'r': self.wheel_radius, 'L': 2*self.radius},
-        #                                   inputs=['omega_l', 'omega_r'],
-        #                                   outputs=['flat_x', 'flat_y'],
-        #                                   states=['x', 'y', 'theta'])
     # /__init__()
 
     def reset(self, x, y, θ_deg):
@@ -95,17 +85,14 @@ class DifferentialDriveRobot:
         return u_min, u_max
     # /controlLimits()
 
-    def fsmTransition(self, fsm_state):
-        print('State transition: ', self.fsm_state, '->', fsm_state)
-        self.fsm_state = fsm_state
-    # fsmTransition()
+    def parameters(self):
+        return (self.wheel_radius, 2*self.radius) # baseline
+    #/
 
     @staticmethod
-    def equationOfMotion(t, s, u, params):
+    def equationOfMotion(t, s, u, r, L):
         _, _, θ = s
         ω_l, ω_r = u
-        r = params['r'] # wheel radius
-        L = params['L'] # baseline
         v = (r/2) * (ω_r + ω_l)
         x_dot = v * np.cos(θ)
         y_dot = v * np.sin(θ)
@@ -113,33 +100,8 @@ class DifferentialDriveRobot:
         return np.array([x_dot, y_dot, θ_dot])
     # /equationOfMotion()
 
-    def transitionFunction(self, dt):
-        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u,
-                                                          params={'r': self.wheel_radius,
-                                                                  'L': 2*self.radius})
-    # /transitionFunction()
-
-    def dynamics(self, t, s, u):
-        # SciPy's odeint() needs 't' in signature
-        return self.equationOfMotion(t, s, u,
-                                     params={'r': self.wheel_radius,
-                                             'L': 2*self.radius})
-    # /dynamics
-
-    def applyControl(self, delta_t, s, u):
-        '''
-            u: angular velocities of left and right wheels, respectively, in rad/s
-        '''
-        s = scipy.integrate.odeint(self.dynamics,
-                                   s,
-                                   np.array([0, delta_t]),
-                                   args=(u,),
-                                   tfirst=True)[1]
-        return s
-    # /applyControls()
-
     def dynamicsJacobian_state(self, s, u):
-        J_s = np.zeros((3,3))
+        J_s = np.zeros((self.stateDim(), self.stateDim()))
         θ = s[2]
         r = self.wheel_radius
         v = r/2 * np.sum(u)
@@ -149,7 +111,7 @@ class DifferentialDriveRobot:
     # /dynamicsJacobian_state()
 
     def dynamicsJacobian_control(self, s, u):
-        J_u = np.zeros((3,2))
+        J_u = np.zeros((self.stateDim(), self.controlDim()))
         θ = s[2]
         r = self.wheel_radius
         L = 2 * self.radius # baseline
@@ -172,15 +134,15 @@ class DifferentialDriveRobot:
         f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
         f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
         P_N = 5000 * np.eye(3)
-        # Q_k = np.diag([1,1,1])
-        Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
+        Q = np.array([np.diag([1,1,1])] * N)
+        # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(2)
         R_delta_u = 100 * np.eye(2)
-        s, _ = iLQR(f, f_s, f_u,
+        s, u = iLQR(f, f_s, f_u,
                     self.s[-1], s_goal, N,
                     P_N, Q, R_k, R_delta_u)
         t = np.linspace(0,N,N+1) * dt
-        self.setTrajectory(s,t)
+        self.setTrajectory(t, s, u)
     # /gotoUsingIlqr()
 
     def gotoUsingFlatsysToolbox(self, target_state, duration):
@@ -201,55 +163,8 @@ class DifferentialDriveRobot:
         self.setTrajectory(self.s.T)
     # /gotoUsingFlatsysToolbox()
 
-    def setTrajectory(self, s,t):
-        self.s = s
-        self.timepts = t
-        self.drive()
-    # /setTrajectory()
-
-    def drive(self):
-        self.t_drive_begin = time.time()
-        self.s_counter = 0
-        self.fsmTransition(FsmState.DRIVING)
-    # /drive()
-
-    def currentPose(self):
-        return self.s[self.s_counter]
-    # /
-
     # Draw this instance onto a qpainter
-    def render(self, qpainter, window_height):
-        if self.fsm_state == FsmState.PLANNING:
-            return
-        # /if
-
-
-        if self.fsm_state == FsmState.DRIVING:
-            t_drive = time.time() - self.t_drive_begin
-            while self.s_counter < len(self.s) and self.timepts[self.s_counter] < t_drive:
-                self.s_counter += 1
-            #/
-            if self.s_counter == len(self.timepts):
-                self.fsmTransition(FsmState.IDLE)
-            # /if
-
-            self.s_counter -= 1
-        # /if
-
-        x, y, θ = self.currentPose()
-        original_transform = qpainter.worldTransform()
-        transform = QtGui.QTransform()
-        transform.translate(x, window_height -1 -y)
-        transform.rotate(np.rad2deg(-θ)) # degrees
-        qpainter.setWorldTransform(transform, combine=False)
-
-        self.renderCanonical(qpainter, window_height)
-
-        qpainter.setWorldTransform(original_transform)
-        
-    # /render()
-
-    def renderCanonical(self, qpainter, window_height):
+    def renderCanonical(self, qpainter):
         '''
             Renders the robot in canonical coordinate frame.
             Call after setting the world transformation.
