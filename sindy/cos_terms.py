@@ -51,7 +51,7 @@ class SindyBasisCosTermsGenerator:
         for i in range(self.m):
             for j in range(self.n):
                 if basis_offset == next_index_to_match:
-                    terms.append(f's[{j}]*cos(u[{i}])')
+                    terms.append(f'u[{j}]*cos(s[{i}])')
                     sublist_index += 1
                     next_index_to_match = next_index(sublist_index, n_basis)
                 #/
