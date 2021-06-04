@@ -46,8 +46,8 @@ class Robot:
         raise NotImplementedError
     #/
 
-    def transitionFunction(self, dt, *args):
-        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u, *args)
+    def transitionFunction(self, dt):
+        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u, *self.parameters())
     # /transitionFunction()
 
     def applyControl(self, delta_t, s, u):
