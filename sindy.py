@@ -1,3 +1,4 @@
+from bicycle_robot import BicycleRobot
 import numpy as np
 
 from diff_drive_robot import DifferentialDriveRobot
@@ -8,6 +9,7 @@ from sindy.linear_terms import SindyBasisLinearTermsGenerator
 from sindy.quadratic_terms import SindyBasisQuadraticTermsGenerator
 from sindy.sin_terms import SindyBasisSinTermsGenerator
 from sindy.cos_terms import SindyBasisCosTermsGenerator
+from sindy.tan_terms import SindyBasisTanTermsGenerator
 
 def generateSindyData(robot, n_trials, dt, n_samples_per_u=5):
     n_state = robot.stateDim()
@@ -50,7 +52,8 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
         SindyBasisLinearTermsGenerator(n,m),
         SindyBasisQuadraticTermsGenerator(n,m),
         SindyBasisSinTermsGenerator(n,m),
-        SindyBasisCosTermsGenerator(n,m)
+        SindyBasisCosTermsGenerator(n,m),
+        SindyBasisTanTermsGenerator(n,m)
     ]
 
     B_cols = sum(map(lambda gen: gen.numTerms(), basis_gens))
@@ -66,12 +69,16 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
 # /generateSindyBasisFunctions()
 
 def main():
-    robot = DifferentialDriveRobot2(radius=15,
-                                   wheel_radius=6,
-                                   wheel_thickness=3)
-    robot.reset(20, 40, 0, 0, 0)
+    # robot = DifferentialDriveRobot2(radius=15,
+    #                                wheel_radius=6,
+    #                                wheel_thickness=3)
+    # robot.reset(40, 40, 0, 0, 0)
+
+    robot = BicycleRobot(wheel_radius=20, baseline=60)
+    robot.reset(40, 40, 0)
+
     n_trials = 1000
-    n_samples_per_u = 5
+    n_samples_per_u = 50
     dt = 0.01
     t_data, s_data, u_data, s_dot_data = \
         generateSindyData(robot, n_trials, dt, n_samples_per_u)
