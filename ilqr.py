@@ -70,16 +70,22 @@ def totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u):
     return 0.5 * J
 # /totalCost()
 
-def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
+def iLQR(model, s_goal,
+         P_N, Q, R_k, R_delta_u,
+         n_iter,
+         t, s_bar, u_bar):
     '''
     model: dynamics and jacobians of dynamics
     s0, s_goal: initial and goal states
-    N : number of time-steps per episode
     P_N : terminal cost coefficient
     Q_k : state-cost coefficient per-stage
     R_k : control-cost coefficient per-stage
+    t, s_bar_, u_bar: Initial dynamically-feasible trajectory
     '''
     t_dummy = np.nan # not used
+
+    N = len(t) - 1
+    dt = t[1] -  t[0]
 
     # State-transition function and its Jacobians, from dynamics
     f = lambda s,u: s + dt * model.dynamics(t_dummy, s, u)
@@ -87,29 +93,22 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
     A = model.dynamicsJacobianWrtState
     B = model.dynamicsJacobianWrtControl
     # ... and compute approximate Jacobians for transition function
-    df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(t_dummy,s,u)
-    df_du = lambda s,u: dt * B(t_dummy,s,u)
+    df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
+    df_du = lambda s,u: dt * B(s,u)
 
-    u_convergence_tol = 1.0e-1
-    n_state = len(s_goal)
-    n_control = R_k.shape[-1]
-
-    # Initialize trajectory: nominal and perturbed
-    s_bar = np.zeros((N+1, n_state), dtype='float64')
-    u_bar = np.zeros((N, n_control), dtype='float64')
-    s_bar[0] = s0
-    for k in range(N):
-        s_bar[k+1] = np.array( f(s_bar[k], u_bar[k]) ) # could be JAX type
-    # /for k
     s = s_bar.copy() # initial perturbations are zero
     u = u_bar.copy()
 
+    n_state = model.stateDim()
+    n_control = model.controlDim()
     mat_Ls = np.zeros((N, n_control, n_state), dtype='float64')
     vec_ls = np.zeros((N, n_control), dtype='float64')
 
     cost_history = np.zeros(n_iter)
     sf_norm_history = np.zeros_like(cost_history)
     du_norm_history = np.zeros_like(cost_history)
+
+    u_convergence_tol = 1.0e-1
 
     for iter in range(n_iter):
 
@@ -123,8 +122,8 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
         for k in range(N-1,-1,-1):
             mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0 = \
                 stageCostComponents(Q[k], R_k, R_delta_u, s_bar[k], u_bar[k], s_goal)
-            mat_A = np.array( df_ds(s_bar[k], u_bar[k]) ) # could be JAX types
-            mat_B = np.array( df_du(s_bar[k], u_bar[k]) ) # could be JAX types
+            mat_A = np.array( df_ds(s_bar[k], u_bar[k]) ) # NumPY --> JAX conversion, if applicable
+            mat_B = np.array( df_du(s_bar[k], u_bar[k]) ) # NumPY --> JAX conversion, if applicable
             mat_Ls[k], vec_ls[k], mat_Jss, vec_Js, scalar_J0 = \
                 iLQR_iteration(mat_A, mat_B,
                                mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0,
@@ -132,13 +131,14 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
         # /for k
 
         # Forward-integrate dynamics with new controls
-        assert (s_bar[0] == s0).all()
         for k in range(N):
             delta_s = s[k] - s_bar[k]
             delta_u = mat_Ls[k] @ delta_s + vec_ls[k]
             u[k] = u_bar[k] + delta_u
-            s[k+1] = f(s[k], u[k])
+            s[k+1] = np.array( f(s[k], u[k]) ) # NumPY --> JAX conversion, if applicable
         # /for k
+
+        # accumulate metrics
         cost_history[iter] = totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u)
         sf_norm_history[iter] = np.linalg.norm(s[N]-s_goal)
         du_norm_history[iter] = np.max(np.abs(u - u_bar))
@@ -151,6 +151,7 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
         else:
             s_bar = s.copy()
             u_bar = u.copy()
+        # /if-else
     # /for episode
 
     u = np.append([[0,0]], u, axis=0) # first control is 0

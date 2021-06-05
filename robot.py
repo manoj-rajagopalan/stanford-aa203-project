@@ -39,6 +39,9 @@ class ReferenceTrackerController:
 
     # Note: this returns state, not control!
     def __call__(self, s, t):
+        if self.isFinished():
+            return np.zeros_like(self.u_ref[0])
+        #/
         i = bisect.bisect_left(self.t_ref, t)
         if i >= len(self.t_ref):
             self.is_finished = True
@@ -51,6 +54,45 @@ class ReferenceTrackerController:
         return self.is_finished
     #/
 # /ReferenceTrackerController
+
+class ILQRController:
+    def __init__(self, mat_Ls, vec_ls, t_ref, s_ref, u_ref):
+        self.mat_Ls = mat_Ls
+        self.vec_ls = vec_ls
+        self.t_ref = t_ref
+        self.s_ref = s_ref
+        self.u_ref = u_ref
+        self.reset()
+    #/
+
+    def reset(self):
+        self.t = 0
+        self.is_finished = False
+    #/
+
+    def __call__(self, s, t):
+        if self.isFinished():
+            return np.zeros_like(self.u_ref[0])
+        #/
+        i = bisect.bisect_left(self.t_ref, t)
+        if i >= len(self.s_ref) - 1:
+            self.is_finished = True
+            return np.zeros_like(self.u_ref[0])
+        #/
+        t_frac = (t - self.t_ref[i]) / (self.t_ref[i+1] - self.t_ref[i])
+        s_ref_interp = self.s_ref[i] + t_frac * (self.s_ref[i+1] - self.s_ref[i])
+        ds = s - s_ref_interp
+        du = self.mat_Ls[i] @ ds + self.vec_ls[i]
+        u = self.u_ref[i+1] + du
+        return u
+    #/
+
+    def isFinished(self):
+        return self.is_finished
+    #/
+# /ILQRController
+
+
 class Robot:
     def __init__(self, model) -> None:
         self.model = model
@@ -114,14 +156,7 @@ class Robot:
     # /transitionFunction()
 
     def applyControl(self, delta_t, s, u):
-        '''
-            u: angular velocities of left and right wheels, respectively, in rad/s
-        '''
-        s = scipy.integrate.odeint(self.model.dynamics,
-                                   s,
-                                   np.array([0, delta_t]),
-                                   args=(u,),
-                                   tfirst=True)[1]
+        s = self.model.applyControl(delta_t, s, u)
         return s
     # /applyControl()
 
@@ -152,6 +187,9 @@ class Robot:
     #/
 
     def drive(self):
+        self.s = self.s[0][np.newaxis,:]
+        self.u = np.zeros((1,self.model.controlDim()))
+        self.t = np.array([0])
         self.t0 = time.time()
         self.controller.reset()
         self.fsmTransition(FsmState.DRIVING)

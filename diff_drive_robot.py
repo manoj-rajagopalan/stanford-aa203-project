@@ -9,7 +9,7 @@ import scipy.optimize
 import control.flatsys as flatsys
 from PyQt5 import QtGui, QtCore
 
-from robot import ReferenceTrackerController, Robot
+from robot import ILQRController, ReferenceTrackerController, Robot
 from fsm_state import FsmState
 from ilqr import iLQR
 class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
@@ -93,32 +93,26 @@ class DifferentialDriveRobot(Robot):
         self.wheel_thickness = wheel_thickness
     # /__init__()
 
-    def reset(self, s0):
-        super(DifferentialDriveRobot, self).reset(s0)
-    # /
-
     def controlLimits(self):
         u_max = np.deg2rad(np.array([15.0, 15.0])) # deg/s -> rad/s
         u_min = -u_max
         return u_min, u_max
     # /controlLimits()
 
-    def ilqr(self, model, s_goal, duration, dt=0.01):
+    def ilqr(self, model, s_goal, t, s_init, u_init):
         self.fsmTransition(FsmState.PLANNING)
-        N = int(duration / dt)
+        N = len(t) - 1
         P_N = 5000 * np.eye(model.stateDim())
         Q = np.array([np.diag([1,1,1])] * N)
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(model.controlDim())
         R_delta_u = 100 * np.eye(model.controlDim())
         s, u, mat_Ls, vec_ls, metrics_history = \
-            iLQR(model,
-                 self.s[0], s_goal, N, dt,
-                 P_N, Q, R_k, R_delta_u, 20)
-        t = np.linspace(0,N,N+1) * dt
-        controller = ReferenceTrackerController(t,s,u)
-        self.setController(controller)
-        self.drive()
+            iLQR(model, s_goal,
+                 P_N, Q, R_k, R_delta_u,
+                 100,
+                 t, s_init, u_init)
+        return mat_Ls, vec_ls, t, s, u
     # /ilqr()
 
     # Draw this instance onto a qpainter
