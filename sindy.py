@@ -12,7 +12,7 @@ from sindy.sin_terms import SindyBasisSinTermsGenerator
 from sindy.cos_terms import SindyBasisCosTermsGenerator
 from sindy.tan_terms import SindyBasisTanTermsGenerator
 
-def generateSindyData(robot, n_trials, dt, n_samples_per_u=5):
+def generateSindyData(robot, n_trials, n_samples_per_u, dt):
     n_state = robot.stateDim()
     n_control = robot.controlDim()
     t_data = dt * np.cumsum(1 + np.arange(n_samples_per_u * n_trials))
@@ -69,69 +69,8 @@ def generateSindyBasisFunctions(t_data, s_data, u_data):
     return B, basis_gens
 # /generateSindyBasisFunctions()
 
-def main():
-    robot = DifferentialDriveRobot(radius=15,
-                                   wheel_radius=6,
-                                   wheel_thickness=3)
-    robot.reset(40, 40, 0)
-
-    # robot = DifferentialDriveRobot2(radius=15,
-    #                                 wheel_radius=6,
-    #                                 wheel_thickness=3)
-    # robot.reset(40, 40, 0, 0, 0)
-
-    # robot = BicycleRobot(wheel_radius=20, baseline=60)
-    # robot.reset(40, 40, 0)
-
-    # robot = BicycleRobot2(wheel_radius=20, baseline=60)
-    # robot.reset(40, 40, 0, 0)
-
-    n_trials = 5000
-    n_samples_per_u = 10
-    dt = 0.001
-    t_data, s_data, u_data, s_dot_data = \
-        generateSindyData(robot, n_trials, dt, n_samples_per_u)
-    B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data)
-    indices = np.arange(B.shape[1])
-    threshold = 1.0e-2
-    print('Iter -1 n_basis = {}'.format(B.shape[1]))
-    for iter in range(10):
-        coeffs, residuals, rank, _ = np.linalg.lstsq(B, s_dot_data)
-        argwhere_above_threshold = []
-        for i in range(coeffs.shape[0]):
-            if np.max(np.abs(coeffs[i,:])) > threshold:
-                argwhere_above_threshold.append(i)
-            # /if
-        # /for
-        print('Iter {} rank = {} max_resid = {} n_basis = {}'
-              .format(iter, rank, np.max(residuals) if len(residuals) > 0 else np.nan, len(argwhere_above_threshold)))
-        # if len(argwhere_above_threshold) == len(coeffs):
-        #     break
-        B = B[:, argwhere_above_threshold]
-        indices = indices[argwhere_above_threshold]
-    # /for iter
-    coeffs = coeffs[argwhere_above_threshold, :]
-    
-    print('Final norm = ', np.linalg.norm(s_dot_data - B@coeffs))
-    print('coeffs |min|, |max| =', np.min(np.abs(coeffs)), np.max(np.abs(coeffs)))
-    print('indices =', indices)
-    assert len(indices) > 0
-
-    n_state = s_data.shape[1]
-    n_control = u_data.shape[1]
-
-    terms = []
-    indices_idx = 0
-    col = 0
-
-    for gen in basis_gens:
-        gen_terms, indices_idx, col = \
-            gen.extractTerms(indices, indices_idx, col, robot.stateNames(), robot.controlNames())
-        terms += gen_terms
-    # /for gen
-    print('fn =', terms)
-
-    for i in range(n_state):
+def printModel(robot, coeffs, terms, threshold):
+    for i in range(robot.model.stateDim()):
         which_terms = np.nonzero(coeffs[:,i] > threshold)[0]
         expr = ''
         for k in which_terms:
@@ -139,19 +78,13 @@ def main():
         #/
         print(f'{robot.stateNames()[i]}_dot =', expr[:-3])
     # /for i
+# /printModel()
 
-    createDynamicsPythonModule('DifferentialDriveRobot',
-                                robot.stateNames(), robot.controlNames(),
-                                terms, coeffs,
-                                threshold)
-
-# /main()
-
-def createDynamicsPythonModule(name,
+def createDynamicsPythonModule(module_name,
                                state_names, control_names,
                                terms, coeffs,
                                threshold=1.0e-3):
-    with open(f'SINDy_{name}.py', 'w') as f:
+    with open(f'{module_name}.py', 'w') as f:
         print('import numpy as np', file=f)
         print('import jax', file=f)
         print('import jax.numpy as jnp', file=f)
@@ -178,16 +111,111 @@ def createDynamicsPythonModule(name,
 
         print('def dynamicsJacobianWrtState(t,s,u):', file=f)
         print('\treturn jax.jacfwd(dynamics, 1) (t,s,u)', file=f)
-        print('# /jacobianState()', file=f)
+        print('#/', file=f)
         print('', file=f)
 
         print('def dynamicsJacobianWrtControl(t,s,u):', file=f)
         print('\treturn jax.jacfwd(dynamics, 2) (t,s,u)', file=f)
-        print('# /jacobianControl()', file=f)
+        print('#/', file=f)
         print('', file=f)
     #/ with f
 
 # /createDynamicsPythonModule
+
+def sindy(module_name,
+          robot,
+          n_control_samples, n_state_samples_per_control, dt,
+          threshold, verbose=False):
+
+    # generate data and basis function values
+    t_data, s_data, u_data, s_dot_data = \
+        generateSindyData(robot, n_control_samples, n_state_samples_per_control, dt)
+    B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data)
+    indices = np.arange(B.shape[1])
+    if verbose:
+        print('Iter -1 n_basis = {}'.format(B.shape[1]))
+    #/
+
+    # iteratively run least-squares and filter
+    for iter in range(10):
+        coeffs, residuals, rank, _ = np.linalg.lstsq(B, s_dot_data)
+        argwhere_above_threshold = []
+        for i in range(coeffs.shape[0]):
+            if np.max(np.abs(coeffs[i,:])) > threshold:
+                argwhere_above_threshold.append(i)
+            # /if
+        # /for
+        if verbose:
+            print('Iter {} rank = {} max_resid = {} n_basis = {}'
+                .format(iter, rank, np.max(residuals) if len(residuals) > 0 else np.nan, len(argwhere_above_threshold)))
+        # /if
+        # if len(argwhere_above_threshold) == len(coeffs):
+        #     break
+        B = B[:, argwhere_above_threshold]
+        indices = indices[argwhere_above_threshold]
+    # /for iter
+    coeffs = coeffs[argwhere_above_threshold, :]
+
+    if verbose:
+        print('Final norm = ', np.linalg.norm(s_dot_data - B@coeffs))
+        print('coeffs |min|, |max| =', np.min(np.abs(coeffs)), np.max(np.abs(coeffs)))
+        print('indices =', indices)
+    # /if
+    assert len(indices) > 0
+
+    # extract non-negligible terms
+    n_state = s_data.shape[1]
+    n_control = u_data.shape[1]
+    terms = []
+    indices_idx = 0
+    col = 0
+
+    for gen in basis_gens:
+        gen_terms, indices_idx, col = \
+            gen.extractTerms(indices, indices_idx, col, robot.stateNames(), robot.controlNames())
+        terms += gen_terms
+    # /for gen
+
+    if verbose:
+        print('fn =', terms)
+        printModel(robot, coeffs, terms, threshold)
+    #/
+
+    createDynamicsPythonModule(module_name,
+                               robot.stateNames(), robot.controlNames(),
+                               terms, coeffs,
+                               threshold)
+# /sindy()
+
+################################################################################
+
+def main():
+    robot = DifferentialDriveRobot(radius=15,
+                                   wheel_radius=6,
+                                   wheel_thickness=3)
+    robot.reset(40, 40, 0)
+
+    # robot = DifferentialDriveRobot2(radius=15,
+    #                                 wheel_radius=6,
+    #                                 wheel_thickness=3)
+    # robot.reset(40, 40, 0, 0, 0)
+
+    # robot = BicycleRobot(wheel_radius=20, baseline=60)
+    # robot.reset(40, 40, 0)
+
+    # robot = BicycleRobot2(wheel_radius=20, baseline=60)
+    # robot.reset(40, 40, 0, 0)
+
+    n_control_samples = 5000
+    n_state_samples_per_control = 10
+    dt = 0.001
+    threshold = 1.0e-2 # below which coeffs are negligible
+
+    sindy('SINDy_DiffDriveRobot', robot,
+          n_control_samples, n_state_samples_per_control, dt,
+          threshold, verbose=True)
+
+# /main()
 
 if __name__ == "__main__":
     main()
