@@ -10,12 +10,28 @@ from bicycle_robot_2 import BicycleRobot2, BicycleRobot2FlatSystem
 
 from fsm_state import FsmState
 from main_window import MainWindow
+from sindy.sindy import sindy
 
-def setup_diff_drive_robot(s0, sf, tf):
+def setup_diff_drive_robot(s0, sf, tf, use_sindy=True):
     robot = DifferentialDriveRobot(radius=15,
                                    wheel_radius=6,
                                    wheel_thickness=3)
     robot.reset(*s0)
+    if use_sindy:
+        sindy_dyn_module_name = 'SINDy_DiffDriveModel'
+        sindy(sindy_dyn_module_name,
+              robot,
+              n_control_samples=10000,
+              n_state_samples_per_control=20,
+              dt=tf/1000,
+              threshold=1.0e-3,
+              verbose=True)
+        module = __import__(sindy_dyn_module_name)
+        model = module.SINDy_DiffDriveModel()
+    else:
+        model = robot.model
+    # /if-else
+
     # robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
     # t = np.linspace(0, tf, 1001)
     # s, u = robot_flat.plan(s0, sf, t)

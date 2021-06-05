@@ -97,7 +97,7 @@ class DifferentialDriveRobot(Robot):
     # /
 
     def controlLimits(self):
-        u_max = np.array([30.0, 30.0]) # rad/s
+        u_max = np.deg2rad(np.array([15.0, 15.0])) # deg/s -> rad/s
         u_min = -u_max
         return u_min, u_max
     # /controlLimits()
@@ -105,19 +105,19 @@ class DifferentialDriveRobot(Robot):
     def ilqr(self, model, s_goal, duration, dt=0.01):
         self.fsmTransition(FsmState.PLANNING)
         N = int(duration / dt)
-        P_N = 500 * np.eye(model.stateDim())
+        P_N = 5000 * np.eye(model.stateDim())
         Q = np.array([np.diag([1,1,1])] * N)
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(model.controlDim())
-        R_delta_u = 1000 * np.eye(model.controlDim())
+        R_delta_u = 100 * np.eye(model.controlDim())
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model,
                  self.s[-1], s_goal, N, dt,
-                 P_N, Q, R_k, R_delta_u, 100)
+                 P_N, Q, R_k, R_delta_u, 1000)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(t, s, u)
         self.drive()
-    # /gotoUsingIlqr()
+    # /ilqr()
 
     # Draw this instance onto a qpainter
     def renderCanonical(self, qpainter):
