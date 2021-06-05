@@ -70,7 +70,7 @@ def totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u):
     return 0.5 * J
 # /totalCost()
 
-def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
+def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u, n_iter):
     '''
     f: (nonlinear) dynamics function
     df_ds, df_du: Jacobian of f w.r.t. state and control
@@ -80,7 +80,6 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
     Q_k : state-cost coefficient per-stage
     R_k : control-cost coefficient per-stage
     '''
-    num_episodes = 1000
     u_convergence_tol = 1.0e-1
     n_state = len(s_goal)
     n_control = R_k.shape[0]
@@ -98,7 +97,11 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
     mat_Ls = np.zeros((N, n_control, n_state), dtype='float64')
     vec_ls = np.zeros((N, n_control), dtype='float64')
 
-    for episode in range(num_episodes):
+    cost_history = np.zeros(n_iter)
+    sf_norm_history = np.zeros_like(cost_history)
+    du_norm_history = np.zeros_like(cost_history)
+
+    for iter in range(n_iter):
 
         # Express terminal cost in standard per-stage structure
         delta_sbar_N = s_bar[N] - s_goal
@@ -126,17 +129,22 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
             u[k] = u_bar[k] + delta_u
             s[k+1] = f(s[k], u[k])
         # /for k
-        J = totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u)
-        u_diff_norm = np.max(np.abs(u - u_bar))
-        print('Episode {} cost = {} |s_N - s*| = {} max |delta_u| = {}'
-              .format(episode, J, np.linalg.norm(s[N]-s_goal), u_diff_norm))
+        cost_history[iter] = totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u)
+        sf_norm_history[iter] = np.linalg.norm(s[N]-s_goal)
+        du_norm_history[iter] = np.max(np.abs(u - u_bar))
 
-        if u_diff_norm < u_convergence_tol:
+        print('Episode {} cost = {} ||s_N - s*||_2 = {} ||delta_u||_inf = {}'
+              .format(iter, cost_history[iter], sf_norm_history[iter], du_norm_history[iter]))
+
+        if du_norm_history[iter] < u_convergence_tol:
             break
         else:
             s_bar = s.copy()
             u_bar = u.copy()
     # /for episode
 
-    return s, u, mat_Ls, vec_ls
+    metrics_history = {'cost': cost_history,
+                       'sf_norm': sf_norm_history,
+                       'du_norm': du_norm_history}
+    return s, u, mat_Ls, vec_ls, metrics_history
 # /iLQR()

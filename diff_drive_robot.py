@@ -86,13 +86,10 @@ class DifferentialDriveRobot(Robot):
     def __init__(self, radius, wheel_radius, wheel_thickness):
         model = DiffDriveModel(wheel_radius, 2 * radius)
         super(DifferentialDriveRobot, self).__init__(model)
-        # self.model is our mathematical model fit to  our belief or data
 
         self.radius = radius
         self.wheel_radius = wheel_radius
         self.wheel_thickness = wheel_thickness
-
-        self.flatsys = DifferentialDriveRobotFlatSystem(self.wheel_radius, 2*self.radius)
     # /__init__()
 
     def reset(self, x, y, θ_deg):
@@ -121,9 +118,10 @@ class DifferentialDriveRobot(Robot):
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(model.controlDim())
         R_delta_u = 100 * np.eye(model.controlDim())
-        s, u = iLQR(f, f_s, f_u,
-                    self.s[-1], s_goal, N,
-                    P_N, Q, R_k, R_delta_u)
+        s, u, mat_Ls, vec_ls, metrics_history = \
+            iLQR(f, f_s, f_u,
+                 self.s[-1], s_goal, N,
+                 P_N, Q, R_k, R_delta_u, 100)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(t, s, u)
     # /gotoUsingIlqr()
