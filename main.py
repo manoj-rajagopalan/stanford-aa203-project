@@ -20,7 +20,7 @@ def setup_diff_drive_robot(s0, sf, tf):
     # t = np.linspace(0, tf, 1001)
     # s, u = robot_flat.plan(s0, sf, t)
     # robot.setTrajectory(t, s, u)
-    robot.gotoUsingIlqr(sf, tf)
+    robot.ilqr(robot.model, sf, tf)
     return robot
  # /setup_diff_drive_robot()
 
@@ -77,8 +77,8 @@ def setup_bicycle_robot_2(s0, sf, tf):
 s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, 179])
 tf = 10 # s
-# robot = setup_diff_drive_robot(s0, sf, tf)
-robot = setup_diff_drive_robot_2(s0, sf, tf)
+robot = setup_diff_drive_robot(s0, sf, tf)
+# robot = setup_diff_drive_robot_2(s0, sf, tf)
 # robot = setup_bicycle_robot(s0, sf, tf)
 # robot = setup_bicycle_robot_2(s0, sf, tf)
 

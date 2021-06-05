@@ -4,9 +4,10 @@ import scipy.integrate
 from PyQt5 import QtGui, QtCore
 
 from fsm_state import FsmState
-
+from models.model import Model
 class Robot:
-    def __init__(self) -> None:
+    def __init__(self, model) -> None:
+        self.model = model
         self.fsm_state = FsmState.IDLE
 
         # Trajectory
@@ -25,63 +26,56 @@ class Robot:
         raise NotImplementedError
     #/
 
-    def stateDim(self): # override
-        raise NotImplementedError
+    def stateDim(self):
+        return self.model.stateDim()
     #/
 
-    def stateNames(self): # override
-        raise NotImplementedError
+    def stateNames(self):
+        return self.model.stateNames()
     #/
 
-    def controlDim(self): # override
-        raise NotImplementedError
+    def controlDim(self):
+        return self.model.controlDim()
     #/
 
-    def controlNames(self): # oveerride
-        raise NotImplementedError
+    def controlNames(self):
+        return self.model.controlNames()
+    #/
+
+    def parameters(self):
+        return self.model.parameters()
+    #/
+
+    def dynamics(self, t, s, u):
+        return self.model.dynamics(t,s,u)
     #/
 
     def controlLimits(self): # override
         raise NotImplementedError
     #/
 
-    def parameters(self): # override
-        raise NotImplementedError
-    #/
-
-    @staticmethod
-    def equationOfMotion(t, s, u, *args): # override
-        raise NotImplementedError
-    #/
-
     def transitionFunction(self, dt):
-        return lambda s,u: s + dt * self.equationOfMotion(np.nan, s, u, *self.parameters())
+        return lambda s,u: s + dt * self.model.dynamics(np.nan, s, u)
     # /transitionFunction()
 
     def applyControl(self, delta_t, s, u):
         '''
             u: angular velocities of left and right wheels, respectively, in rad/s
         '''
-        args = tuple([u]) + self.parameters()
-        # ... u is of type ndarray
-        #     we want to wrap it in a tuple to be able to add parameters to that tuple
-        #     tuple(u) will convert the ndarray into a tuple instead of wrapping it
-        #     hence wrap in list first and then convert.
-
-        s = scipy.integrate.odeint(self.equationOfMotion,
+        s = scipy.integrate.odeint(self.model.dynamics,
                                    s,
                                    np.array([0, delta_t]),
-                                   args=args,
+                                   args=(u,),
                                    tfirst=True)[1]
         return s
     # /applyControl()
 
-    def dynamicsJacobian_state(self, s, u): # override
-        raise NotImplementedError
+    def dynamicsJacobianWrtState(self, s, u):
+        return self.model.dynamicsJacobianWrtState(s,u)
     #/
 
-    def dynamicsJacobian_control(self, s, u): # overridee
-        raise NotImplementedError
+    def dynamicsJacobianWrtControl(self, s, u):
+        self.model.dynamicsJacobianWrtControl(s,u)
     #/
 
     def gotoUsingIlqr(self, s_goal, duration, dt): # override
@@ -96,7 +90,6 @@ class Robot:
         self.t = t
         self.s = s
         self.u = u
-        self.drive()
     # /setTrajectory()
 
     def drive(self):

@@ -1,3 +1,4 @@
+from models.diff_drive_model import DiffDriveModel
 import time
 import copy
 
@@ -83,7 +84,10 @@ class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
 class DifferentialDriveRobot(Robot):
     
     def __init__(self, radius, wheel_radius, wheel_thickness):
-        super(DifferentialDriveRobot, self).__init__()
+        model = DiffDriveModel(wheel_radius, 2 * radius)
+        super(DifferentialDriveRobot, self).__init__(model)
+        # self.model is our mathematical model fit to  our belief or data
+
         self.radius = radius
         self.wheel_radius = wheel_radius
         self.wheel_thickness = wheel_thickness
@@ -95,83 +99,38 @@ class DifferentialDriveRobot(Robot):
         self.s = np.array([[x, y, np.deg2rad(θ_deg)]])
     # /
 
-    def stateDim(self):
-        return 3
-    #/
-
-    def stateNames(self):
-        return 'x', 'y', 'θ'
-    #/
-
-    def controlDim(self):
-        return 2
-    #/
-
-    def controlNames(self):
-        return 'ω_l', 'ω_r'
-    #/
-
     def controlLimits(self):
         u_max = np.array([30.0, 30.0]) # rad/s
         u_min = -u_max
         return u_min, u_max
     # /controlLimits()
 
-    def parameters(self):
-        return (self.wheel_radius, 2*self.radius) # baseline
-    #/
-
-    @staticmethod
-    def equationOfMotion(t, s, u, r, L):
-        _, _, θ = s
-        ω_l, ω_r = u
-        v = (r/2) * (ω_r + ω_l)
-        x_dot = v * np.cos(θ)
-        y_dot = v * np.sin(θ)
-        θ_dot = (r/L) * (ω_r - ω_l)
-        return np.array([x_dot, y_dot, θ_dot])
-    # /equationOfMotion()
-
-    def dynamicsJacobian_state(self, s, u):
-        J_s = np.zeros((self.stateDim(), self.stateDim()))
-        θ = s[2]
-        r = self.wheel_radius
-        v = r/2 * np.sum(u)
-        J_s[0,2] = -v * np.sin(θ)
-        J_s[1,2] =  v * np.cos(θ)
-        return J_s
-    # /dynamicsJacobian_state()
-
-    def dynamicsJacobian_control(self, s, u):
-        J_u = np.zeros((self.stateDim(), self.controlDim()))
-        θ = s[2]
-        r = self.wheel_radius
-        L = 2 * self.radius # baseline
-        J_u[0,:].fill(r/2 * np.cos(θ))
-        J_u[1,:].fill(r/2 * np.sin(θ))
-        J_u[2,0] = -r/L
-        J_u[2,1] = r/L
-        return J_u
-    # /dynamicsJacobian_control()
-
-    def gotoUsingIlqr(self, s_goal, duration, dt=0.01):
+    def ilqr(self, model, s_goal, duration, dt=0.01):
         self.fsmTransition(FsmState.PLANNING)
         N = int(duration / dt)
         t_dummy = np.nan # not used
-        f = self.transitionFunction(dt)
-        f_s = lambda s,u: np.eye(len(s)) + dt * self.dynamicsJacobian_state(s,u)
-        f_u = lambda s,u: dt * self.dynamicsJacobian_control(s,u)
-        P_N = 5000 * np.eye(3)
+        f = lambda s,u: s + dt * model.dynamics(t_dummy, s, u)
+        # Linearize model dynamics ODE into Ax + Bu
+        A = model.dynamicsJacobianWrtState
+        B = model.dynamicsJacobianWrtControl
+        # ... and compute approximate Jacobians for transition function
+        f_s = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
+        f_u = lambda s,u: dt * B(s,u)
+        P_N = 5000 * np.eye(model.stateDim())
         Q = np.array([np.diag([1,1,1])] * N)
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
-        R_k = 5 * np.eye(2)
-        R_delta_u = 100 * np.eye(2)
+        R_k = 5 * np.eye(model.controlDim())
+        R_delta_u = 100 * np.eye(model.controlDim())
         s, u = iLQR(f, f_s, f_u,
                     self.s[-1], s_goal, N,
                     P_N, Q, R_k, R_delta_u)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(t, s, u)
     # /gotoUsingIlqr()
+
+    def render(self, qpainter):
+        if self.fsm_state == FsmState.DRIVING:
+            t_drive = time.time() - self.t_drive_begin
 
     # Draw this instance onto a qpainter
     def renderCanonical(self, qpainter):

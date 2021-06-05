@@ -138,5 +138,5 @@ def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u):
             u_bar = u.copy()
     # /for episode
 
-    return s, u
+    return s, u, mat_Ls, vec_ls
 # /iLQR()
