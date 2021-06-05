@@ -7,7 +7,10 @@ from sindy.sin_terms import SindyBasisSinTermsGenerator
 from sindy.cos_terms import SindyBasisCosTermsGenerator
 from sindy.tan_terms import SindyBasisTanTermsGenerator
 
-def generateSindyData(robot, n_trials, n_samples_per_u, dt):
+def generateSindyData(robot, n_trials, n_samples_per_u, dt, verbose=False):
+    if verbose:
+        print('Generating SINDy observation data from robot')
+    #/
     n_state = robot.stateDim()
     n_control = robot.controlDim()
     t_data = dt * np.cumsum(1 + np.arange(n_samples_per_u * n_trials))
@@ -36,7 +39,10 @@ def generateSindyData(robot, n_trials, n_samples_per_u, dt):
 
 # /generateSindyData()
 
-def generateSindyBasisFunctions(t_data, s_data, u_data):
+def generateSindyBasisFunctions(t_data, s_data, u_data, verbose=False):
+    if verbose:
+        print('Generating SINDy basis function evaluations from observations')
+    #/
     N = len(t_data)
     assert N == len(s_data)
     assert N == len(u_data)
@@ -78,8 +84,13 @@ def printModel(robot, coeffs, terms, threshold):
 def createDynamicsPythonModule(module_name, model,
                                state_names, control_names,
                                terms, coeffs,
-                               threshold=1.0e-3):
+                               threshold=1.0e-3,
+                               verbose=False):
+    if verbose:
+        print('Generating SINDy python module')
+    #/
     with open(f'{module_name}.py', 'w') as f:
+        # print('import numpy as np', file=f)
         print('import jax', file=f)
         print('import jax.numpy as jnp', file=f)
         print('', file=f)
@@ -96,6 +107,7 @@ def createDynamicsPythonModule(module_name, model,
         print('\t#/', file=f)
         print('', file=f)
 
+        # print('\t@jax.jit', file=f)
         print(f'\tdef dynamics(self, t, s, u):', file=f)
         n_state = len(state_names)
         n_control = len(control_names)
@@ -112,17 +124,25 @@ def createDynamicsPythonModule(module_name, model,
             expr = expr.replace('tan(', 'jnp.tan(')
             print(f'\t\t{state_names[i]}_dot =', expr[:-3], file=f)
         # /for i
-        print('\t\treturn jnp.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
+        print('\t\td = jnp.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
+        # print('\t\treturn np.array(d)', file=f)
+        print('\t\treturn d', file=f)
         print('\t#/', file=f)
         print('', file=f)
 
+        # print('\t@jax.jit', file=f)
         print('\tdef dynamicsJacobianWrtState(self, t,s,u):', file=f)
-        print('\t\treturn jax.jacfwd(self.dynamics, 1) (t,s,u)', file=f)
+        print('\t\tJs = jax.jacfwd(self.dynamics, 1) (t,s,u)', file=f)
+        # print('\t\treturn np.array(Js)', file=f)
+        print('\t\treturn Js', file=f)
         print('\t#/', file=f)
         print('', file=f)
 
+        # print('\t@jax.jit', file=f)
         print('\tdef dynamicsJacobianWrtControl(self, t,s,u):', file=f)
-        print('\t\treturn jax.jacfwd(self.dynamics, 2) (t,s,u)', file=f)
+        print('\t\tJu = jax.jacfwd(self.dynamics, 2) (t,s,u)', file=f)
+        # print('\t\treturn np.array(Ju)', file=f)
+        print('\t\treturn Ju', file=f)
         print('\t#/', file=f)
         print('', file=f)
 
@@ -140,8 +160,8 @@ def sindy(module_name,
 
     # generate data and basis function values
     t_data, s_data, u_data, s_dot_data = \
-        generateSindyData(robot, n_control_samples, n_state_samples_per_control, dt)
-    B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data)
+        generateSindyData(robot, n_control_samples, n_state_samples_per_control, dt, verbose)
+    B, basis_gens = generateSindyBasisFunctions(t_data, s_data, u_data, verbose)
     indices = np.arange(B.shape[1])
     if verbose:
         print('Iter -1 n_basis = {}'.format(B.shape[1]))
@@ -195,7 +215,8 @@ def sindy(module_name,
     createDynamicsPythonModule(module_name, robot.model,
                                robot.stateNames(), robot.controlNames(),
                                terms, coeffs,
-                               threshold)
+                               threshold,
+                               verbose)
 # /sindy()
 
 ################################################################################
