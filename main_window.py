@@ -7,13 +7,15 @@ import matplotlib.figure
 from fsm_state import FsmState
 
 class XyPlot(MplFigCanvas):
-    def __init__(self, title, width, height, dpi=100):
+    def __init__(self, parent, title, width, height, dpi=100):
         fig = matplotlib.figure.Figure(figsize=(width,height), dpi=dpi)
         self.distance_axes = fig.subplots()
         self.distance_axes.set_xlabel('t')
         self.distance_axes.set_title(title)
         self.angle_axes = self.distance_axes.twinx()
         super().__init__(fig)
+        self.setParent(parent)
+        self.setUpdatesEnabled(True)
     # /__init__()
 # /class XyPlot
 
@@ -34,9 +36,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.label.setPixmap(robot_canvas)
         hlayout.addWidget(self.label)
         plots_vlayout = QtWidgets.QVBoxLayout()
-        self.state_plot = XyPlot('State', 300, self.label.height()//2)
+        self.state_plot = XyPlot(self, 'State', 300, self.label.height()//2)
         plots_vlayout.addWidget(self.state_plot)
-        self.control_plot = XyPlot('Control', 300, self.label.height()//2)
+        self.control_plot = XyPlot(self, 'Control', 300, self.label.height()//2)
         plots_vlayout.addWidget(self.control_plot)
         hlayout.addItem(plots_vlayout)
         
@@ -54,7 +56,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # animations
         self.render_timer = QtCore.QTimer()
         self.render_timer.timeout.connect(self.render)
-        # self.counter = 0
         self.render_timer.start(25) # ms => 40 fps
     # /setupAnimation()
 
@@ -70,6 +71,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # loop
         if self.robot.fsm_state == FsmState.IDLE:
+            self.state_plot.distance_axes.cla()
+            self.state_plot.angle_axes.cla()
+            self.control_plot.distance_axes.cla()
+            self.control_plot.angle_axes.cla()
             self.robot.drive()
         # /if
 
@@ -80,6 +85,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.robot.render(qpainter)
 
         qpainter.end()
+
+        self.robot.plotTrajectory(self.state_plot, self.control_plot)
         self.update()
     # /render()
 

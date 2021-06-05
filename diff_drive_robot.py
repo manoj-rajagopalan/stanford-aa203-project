@@ -1,3 +1,4 @@
+from main_window import XyPlot
 from models.diff_drive_model import DiffDriveModel
 import time
 import copy
@@ -113,7 +114,7 @@ class DifferentialDriveRobot(Robot):
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model,
                  self.s[0], s_goal, N, dt,
-                 P_N, Q, R_k, R_delta_u, 1000)
+                 P_N, Q, R_k, R_delta_u, 20)
         t = np.linspace(0,N,N+1) * dt
         controller = ReferenceTrackerController(t,s,u)
         self.setController(controller)
@@ -147,18 +148,23 @@ class DifferentialDriveRobot(Robot):
     # /renderCanonical()
 
     def plotTrajectory(self, state_plot, control_plot):
-        if self.s is None:
+        if self.t is None:
+            print('t is None')
             return
-        #/
+        state_plot.distance_axes.cla()
         state_plot.distance_axes.set_ylabel('$x$, $y$')
         state_plot.distance_axes.plot(self.t, self.s[:,0], 'r', label='$x$')
         state_plot.distance_axes.plot(self.t, self.s[:,1], 'g', label='$y$')
-
+        state_plot.angle_axes.cla()
         state_plot.angle_axes.set_ylabel('$\\theta$ (deg)')
         state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\theta$')
+        state_plot.draw()
 
+        control_plot.angle_axes.cla()
         control_plot.angle_axes.set_ylabel('$\\omega_l$, $\\omega_r$ (deg/s)')
         control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
         control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
+        control_plot.draw()
+
     # /plotTrajectory()
 # /class DifferentialDriveRobot

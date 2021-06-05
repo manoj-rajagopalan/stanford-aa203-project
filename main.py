@@ -102,6 +102,5 @@ robot = setup_diff_drive_robot(s0, sf, tf)
 
 app = QtWidgets.QApplication(sys.argv)
 main_window = MainWindow(800, 800, robot)
-robot.plotTrajectory(main_window.state_plot, main_window.control_plot)
 main_window.show()
 app.exec_()
