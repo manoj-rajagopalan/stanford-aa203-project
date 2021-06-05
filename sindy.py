@@ -1,10 +1,5 @@
 import numpy as np
 
-from diff_drive_robot import DifferentialDriveRobot
-from diff_drive_robot_2 import DifferentialDriveRobot2
-from bicycle_robot import BicycleRobot
-from bicycle_robot_2 import BicycleRobot2
-
 from sindy.constant_term import SindyBasisConstantTermGenerator
 from sindy.linear_terms import SindyBasisLinearTermsGenerator
 from sindy.quadratic_terms import SindyBasisQuadraticTermsGenerator
@@ -80,20 +75,32 @@ def printModel(robot, coeffs, terms, threshold):
     # /for i
 # /printModel()
 
-def createDynamicsPythonModule(module_name,
+def createDynamicsPythonModule(module_name, model,
                                state_names, control_names,
                                terms, coeffs,
                                threshold=1.0e-3):
     with open(f'{module_name}.py', 'w') as f:
-        print('import numpy as np', file=f)
         print('import jax', file=f)
         print('import jax.numpy as jnp', file=f)
         print('', file=f)
-        print(f'def dynamics(t, s, u):', file=f)
+        print(f'class {module_name}:', file=f)
+        print('', file=f)
+
+        print('\tdef stateDim(self):', file=f)
+        print(f'\t\treturn {model.stateDim()}', file=f)
+        print('\t#/', file=f)
+        print('', file=f)
+
+        print('\tdef controlDim(self):', file=f)
+        print(f'\t\treturn {model.controlDim()}', file=f)
+        print('\t#/', file=f)
+        print('', file=f)
+
+        print(f'\tdef dynamics(self, t, s, u):', file=f)
         n_state = len(state_names)
         n_control = len(control_names)
-        print('\t' + ', '.join(state_names) + ' = s', file=f)
-        print('\t' + ', '.join(control_names) + ' = u', file=f)
+        print('\t\t' + ', '.join(state_names) + ' = s', file=f)
+        print('\t\t' + ', '.join(control_names) + ' = u', file=f)
         for i in range(n_state):
             which_terms = np.nonzero(coeffs[:,i] > threshold)[0]
             expr = ''
@@ -103,21 +110,25 @@ def createDynamicsPythonModule(module_name,
             expr = expr.replace('cos(', 'jnp.cos(')
             expr = expr.replace('sin(', 'jnp.sin(')
             expr = expr.replace('tan(', 'jnp.tan(')
-            print(f'\t{state_names[i]}_dot =', expr[:-3], file=f)
+            print(f'\t\t{state_names[i]}_dot =', expr[:-3], file=f)
         # /for i
-        print('\treturn jnp.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
-        print('# /dynamics()', file=f)
+        print('\t\treturn jnp.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
+        print('\t#/', file=f)
         print('', file=f)
 
-        print('def dynamicsJacobianWrtState(t,s,u):', file=f)
-        print('\treturn jax.jacfwd(dynamics, 1) (t,s,u)', file=f)
-        print('#/', file=f)
+        print('\tdef dynamicsJacobianWrtState(self, t,s,u):', file=f)
+        print('\t\treturn jax.jacfwd(self.dynamics, 1) (t,s,u)', file=f)
+        print('\t#/', file=f)
         print('', file=f)
 
-        print('def dynamicsJacobianWrtControl(t,s,u):', file=f)
-        print('\treturn jax.jacfwd(dynamics, 2) (t,s,u)', file=f)
-        print('#/', file=f)
+        print('\tdef dynamicsJacobianWrtControl(self, t,s,u):', file=f)
+        print('\t\treturn jax.jacfwd(self.dynamics, 2) (t,s,u)', file=f)
+        print('\t#/', file=f)
         print('', file=f)
+
+        print(f'# /class {module_name}', file=f)
+        print('', file=f)
+
     #/ with f
 
 # /createDynamicsPythonModule
@@ -181,13 +192,18 @@ def sindy(module_name,
         printModel(robot, coeffs, terms, threshold)
     #/
 
-    createDynamicsPythonModule(module_name,
+    createDynamicsPythonModule(module_name, robot.model,
                                robot.stateNames(), robot.controlNames(),
                                terms, coeffs,
                                threshold)
 # /sindy()
 
 ################################################################################
+
+from diff_drive_robot import DifferentialDriveRobot
+from diff_drive_robot_2 import DifferentialDriveRobot2
+from bicycle_robot import BicycleRobot
+from bicycle_robot_2 import BicycleRobot2
 
 def main():
     robot = DifferentialDriveRobot(radius=15,
@@ -211,7 +227,7 @@ def main():
     dt = 0.001
     threshold = 1.0e-2 # below which coeffs are negligible
 
-    sindy('SINDy_DiffDriveRobot', robot,
+    sindy('SINDy_DiffDriveModel', robot,
           n_control_samples, n_state_samples_per_control, dt,
           threshold, verbose=True)
 
