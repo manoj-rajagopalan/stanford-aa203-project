@@ -87,8 +87,8 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
     A = model.dynamicsJacobianWrtState
     B = model.dynamicsJacobianWrtControl
     # ... and compute approximate Jacobians for transition function
-    df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
-    df_du = lambda s,u: dt * B(s,u)
+    df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(t_dummy,s,u)
+    df_du = lambda s,u: dt * B(t_dummy,s,u)
 
     u_convergence_tol = 1.0e-1
     n_state = len(s_goal)
@@ -99,7 +99,7 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
     u_bar = np.zeros((N, n_control), dtype='float64')
     s_bar[0] = s0
     for k in range(N):
-        s_bar[k+1] = f(s_bar[k], u_bar[k])
+        s_bar[k+1] = np.array( f(s_bar[k], u_bar[k]) ) # could be JAX type
     # /for k
     s = s_bar.copy() # initial perturbations are zero
     u = u_bar.copy()
@@ -123,8 +123,8 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
         for k in range(N-1,-1,-1):
             mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0 = \
                 stageCostComponents(Q[k], R_k, R_delta_u, s_bar[k], u_bar[k], s_goal)
-            mat_A = df_ds(s_bar[k], u_bar[k])
-            mat_B = df_du(s_bar[k], u_bar[k])
+            mat_A = np.array( df_ds(s_bar[k], u_bar[k]) ) # could be JAX types
+            mat_B = np.array( df_du(s_bar[k], u_bar[k]) ) # could be JAX types
             mat_Ls[k], vec_ls[k], mat_Jss, vec_Js, scalar_J0 = \
                 iLQR_iteration(mat_A, mat_B,
                                mat_Css, mat_Cus, mat_Csu, mat_Cuu, vec_Cs, vec_Cu, scalar_C0,
