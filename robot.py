@@ -57,17 +57,20 @@ class Robot:
         self.fsm_state = FsmState.IDLE
 
         # Trajectory
-        self.s_counter = 0
         self.s = None
         self.u = None
         self.t = None
+        self.t0 = 0
+        self.tf = 1
         self.idle_controller = IdleController(model.controlDim())
         self.controller = self.idle_controller
     #/__init__()
     
     def fsmTransition(self, fsm_state):
-        print('State transition: ', self.fsm_state, '->', fsm_state)
-        self.fsm_state = fsm_state
+        if fsm_state != self.fsm_state:
+            print('State transition: ', self.fsm_state, '->', fsm_state)
+            self.fsm_state = fsm_state
+        #/
     #/fsmTransition()
 
     def reset(self, s0):
