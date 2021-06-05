@@ -1,6 +1,7 @@
 import numpy as np
+from models.model import Model
 
-class DiffDriveModel:
+class DiffDriveModel(Model):
     def __init__(self, r, L):
         self.r = r # wheel radius
         self.L = L  # baseline
