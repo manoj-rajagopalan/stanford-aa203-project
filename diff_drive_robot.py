@@ -131,13 +131,18 @@ class DifferentialDriveRobot(Robot):
         brush.setStyle(QtCore.Qt.SolidPattern)
         qpainter.setBrush(brush)
         qpainter.drawEllipse(QtCore.QPoint(0, 0), self.radius, self.radius)
-        qpainter.drawRect(-self.wheel_radius, -self.radius -self.wheel_thickness, 2 * self.wheel_radius, self.wheel_thickness)
-        qpainter.drawRect(-self.wheel_radius,  self.radius,                       2 * self.wheel_radius, self.wheel_thickness)
 
-        # single dot to mark orientation
+        # ... single dot to mark orientation
         brush.setColor(QtCore.Qt.yellow)
         qpainter.setBrush(brush)
         qpainter.drawEllipse(QtCore.QPoint(0.75 * self.radius, 0), 0.1 * self.radius, 0.1 * self.radius)
+
+        # wheels
+        brush.setColor(QtCore.Qt.red)
+        qpainter.setBrush(brush)
+        qpainter.drawRect(-self.wheel_radius, -self.radius -self.wheel_thickness, 2 * self.wheel_radius, self.wheel_thickness)
+        qpainter.drawRect(-self.wheel_radius,  self.radius,                       2 * self.wheel_radius, self.wheel_thickness)
+
     # /renderCanonical()
 
     def plotTrajectory(self, state_plot, control_plot):
