@@ -8,7 +8,7 @@ import scipy.optimize
 import control.flatsys as flatsys
 from PyQt5 import QtGui, QtCore
 
-from robot import Robot
+from robot import ReferenceTrackerController, Robot
 from fsm_state import FsmState
 from ilqr import iLQR
 class DifferentialDriveRobotFlatSystem(flatsys.FlatSystem):
@@ -92,8 +92,8 @@ class DifferentialDriveRobot(Robot):
         self.wheel_thickness = wheel_thickness
     # /__init__()
 
-    def reset(self, x, y, θ_deg):
-        self.s = np.array([[x, y, np.deg2rad(θ_deg)]])
+    def reset(self, s0):
+        super(DifferentialDriveRobot, self).reset(s0)
     # /
 
     def controlLimits(self):
@@ -112,10 +112,11 @@ class DifferentialDriveRobot(Robot):
         R_delta_u = 100 * np.eye(model.controlDim())
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model,
-                 self.s[-1], s_goal, N, dt,
+                 self.s[0], s_goal, N, dt,
                  P_N, Q, R_k, R_delta_u, 1000)
         t = np.linspace(0,N,N+1) * dt
-        self.setTrajectory(t, s, u)
+        controller = ReferenceTrackerController(t,s,u)
+        self.setController(controller)
         self.drive()
     # /ilqr()
 
@@ -146,6 +147,9 @@ class DifferentialDriveRobot(Robot):
     # /renderCanonical()
 
     def plotTrajectory(self, state_plot, control_plot):
+        if self.s is None:
+            return
+        #/
         state_plot.distance_axes.set_ylabel('$x$, $y$')
         state_plot.distance_axes.plot(self.t, self.s[:,0], 'r', label='$x$')
         state_plot.distance_axes.plot(self.t, self.s[:,1], 'g', label='$y$')
@@ -154,7 +158,7 @@ class DifferentialDriveRobot(Robot):
         state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\theta$')
 
         control_plot.angle_axes.set_ylabel('$\\omega_l$, $\\omega_r$ (deg/s)')
-        control_plot.angle_axes.plot(self.t[:-1], np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
-        control_plot.angle_axes.plot(self.t[:-1], np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
+        control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
+        control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
     # /plotTrajectory()
 # /class DifferentialDriveRobot

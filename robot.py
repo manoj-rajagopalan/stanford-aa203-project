@@ -1,10 +1,56 @@
 import time
+import bisect
+
 import numpy as np
 import scipy.integrate
 from PyQt5 import QtGui, QtCore
 
 from fsm_state import FsmState
 from models.model import Model
+class IdleController:
+    def __init__(self, m):
+        self.m = m # control dims
+
+    def reset(self):
+        pass
+
+    def __call__(self, s, t):
+        return np.zeros(self.m)
+
+    def isFinished(self):
+        return False
+# /IdleController
+
+class ReferenceTrackerController:
+    '''
+        Simply looks up the reference trajectory with which it was initialized
+        and interpolates the state that should be next.
+    '''
+    def __init__(self, t_ref, s_ref, u_ref) -> None:
+        self.t_ref = t_ref
+        self.s_ref = s_ref
+        self.u_ref = u_ref
+        self.reset()
+
+    def reset(self):
+        self.t = 0
+        self.is_finished = False
+    #/
+
+    # Note: this returns state, not control!
+    def __call__(self, s, t):
+        i = bisect.bisect_left(self.t_ref, t)
+        if i >= len(self.t_ref):
+            self.is_finished = True
+            i = -1
+        #/
+        return self.s_ref[i]
+    #/
+
+    def isFinished(self):
+        return self.is_finished
+    #/
+# /ReferenceTrackerController
 class Robot:
     def __init__(self, model) -> None:
         self.model = model
@@ -15,6 +61,8 @@ class Robot:
         self.s = None
         self.u = None
         self.t = None
+        self.idle_controller = IdleController(model.controlDim())
+        self.controller = self.idle_controller
     #/__init__()
     
     def fsmTransition(self, fsm_state):
@@ -22,8 +70,12 @@ class Robot:
         self.fsm_state = fsm_state
     #/fsmTransition()
 
-    def reset(self, *args):
-        raise NotImplementedError
+    def reset(self, s0):
+        self.s = s0[np.newaxis,:]
+        self.u = np.zeros((1,self.model.controlDim()))
+        self.t = np.array([0])
+        self.fsmTransition(FsmState.IDLE)
+        self.controller = self.idle_controller
     #/
 
     def stateDim(self):
@@ -92,14 +144,43 @@ class Robot:
         self.u = u
     # /setTrajectory()
 
+    def setController(self, controller):
+        self.controller = controller
+    #/
+
     def drive(self):
-        self.t_drive_begin = time.time()
-        self.s_counter = 0
+        self.t0 = time.time()
+        self.controller.reset()
         self.fsmTransition(FsmState.DRIVING)
     # /drive()
 
+    def update(self):
+        if self.fsm_state == FsmState.DRIVING:
+            t = time.time() - self.t0
+            if self.controller.__class__ == ReferenceTrackerController:
+                s = self.controller(self.s[-1], self.t[-1])
+                u = np.zeros(self.model.controlDim())
+            else:
+                dt = t - self.t[-1]
+                s = self.applyControl(dt, self.s[-1], self.u[-1])
+                u = self.controller(s, t)
+            # /if-else
+            self.t = np.append(self.t, t)
+            self.s = np.append(self.s, s[np.newaxis,:], axis=0)
+            self.u = np.append(self.u, u[np.newaxis,:], axis=0)
+            if self.controller.isFinished():
+                self.fsmTransition(FsmState.IDLE)
+            #/
+        # /if
+    # /update()
+
+
     def currentPose(self):
-        return self.s[self.s_counter]
+        if self.s is None:
+            return None
+        else:
+            return self.s[-1, 0:3]
+        #/
     # /
 
     def renderCanonical(self, qpainter): # override
@@ -107,37 +188,32 @@ class Robot:
     #/
 
     def render(self, qpainter):
-        if self.fsm_state == FsmState.DRIVING:
-            t_drive = time.time() - self.t_drive_begin
-            while self.s_counter < len(self.t) and self.t[self.s_counter] < t_drive:
-                self.s_counter += 1
-            #/
-            if self.s_counter == len(self.t):
-                self.fsmTransition(FsmState.IDLE)
-            #/
-            self.s_counter -= 1
-        # /if
-
-        original_transform = qpainter.worldTransform()
 
         # to vehicle pose
-        x, y, θ = self.s[self.s_counter, 0:3]
+        s = self.currentPose()
+        if s is None:
+            return
+        #/
+
+        original_transform = qpainter.worldTransform()
+        x, y, θ = s
         qpainter.translate(x,y)
-        qpainter.rotate(np.rad2deg(θ)) # qpainter rotates clockwise and in degrees
+        qpainter.rotate(np.rad2deg(θ)) # qpainter rotates in degrees
         self.renderCanonical(qpainter)
 
         qpainter.setWorldTransform(original_transform)
         
         # Overlay elapsed time on top right
         if self.fsm_state == FsmState.DRIVING:
-            time_str = '{:.2f} s'.format(t_drive)
+            time_str = '{:.2f} s'.format(self.t[-1])
+            original_transform = qpainter.worldTransform()
             qpainter.translate(qpainter.device().width()-50, 20)
             qpainter.scale(1, -1)
             brush = QtGui.QBrush()
             brush.setColor(QtCore.Qt.red)
             qpainter.setBrush(brush)
-            # rect = qpainter.window()
             qpainter.drawText(0, 0, time_str)
+            qpainter.setWorldTransform(original_transform)
         # /if
 
     # /render()

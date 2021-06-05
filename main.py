@@ -12,11 +12,11 @@ from fsm_state import FsmState
 from main_window import MainWindow
 from sindy.sindy import sindy
 
-def setup_diff_drive_robot(s0, sf, tf, use_sindy=True):
+def setup_diff_drive_robot(s0, sf, tf, use_sindy=False):
     robot = DifferentialDriveRobot(radius=15,
                                    wheel_radius=6,
                                    wheel_thickness=3)
-    robot.reset(*s0)
+    robot.reset(s0)
     if use_sindy:
         sindy_dyn_module_name = 'SINDy_DiffDriveModel'
         sindy(sindy_dyn_module_name,
@@ -36,7 +36,9 @@ def setup_diff_drive_robot(s0, sf, tf, use_sindy=True):
     # t = np.linspace(0, tf, 1001)
     # s, u = robot_flat.plan(s0, sf, t)
     # robot.setTrajectory(t, s, u)
-    robot.ilqr(robot.model, sf, tf)
+    
+    robot.ilqr(model, sf, tf)
+    
     return robot
  # /setup_diff_drive_robot()
 
@@ -91,7 +93,7 @@ def setup_bicycle_robot_2(s0, sf, tf):
 
 
 s0 = np.array([40, 40, 0])
-sf = np.array([600, 300, 179])
+sf = np.array([600, 300, np.deg2rad(179)])
 tf = 10 # s
 robot = setup_diff_drive_robot(s0, sf, tf)
 # robot = setup_diff_drive_robot_2(s0, sf, tf)

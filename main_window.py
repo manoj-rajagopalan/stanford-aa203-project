@@ -46,10 +46,16 @@ class MainWindow(QtWidgets.QMainWindow):
     # /setupUi()
 
     def setupAnimation(self):
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.render)
-        self.counter = 0
-        self.timer.start(25) # ms
+        # control loop
+        self.controller_timer = QtCore.QTimer()
+        self.controller_timer.timeout.connect(self.robot.update)
+        self.controller_timer.start(10) # ms => 100 Hz
+
+        # animations
+        self.render_timer = QtCore.QTimer()
+        self.render_timer.timeout.connect(self.render)
+        # self.counter = 0
+        self.render_timer.start(25) # ms => 40 fps
     # /setupAnimation()
 
     def render(self):

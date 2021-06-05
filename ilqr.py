@@ -153,6 +153,7 @@ def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
             u_bar = u.copy()
     # /for episode
 
+    u = np.append([[0,0]], u, axis=0) # first control is 0
     metrics_history = {'cost': cost_history,
                        'sf_norm': sf_norm_history,
                        'du_norm': du_norm_history}
