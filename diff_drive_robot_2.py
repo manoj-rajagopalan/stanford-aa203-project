@@ -95,7 +95,7 @@ class DifferentialDriveRobot2(Robot):
         self.flatsys = DifferentialDriveRobot2FlatSystem(self.r, 2*self.R)
     # /__init__()
 
-    def reset(self, x, y, θ_deg, ω_l,ω_r):
+    def reset(self, x, y, θ_deg, ω_l, ω_r):
         self.s = np.array([[x, y, np.deg2rad(θ_deg), np.deg2rad(ω_l), np.deg2rad(ω_r)]])
     # /
 
