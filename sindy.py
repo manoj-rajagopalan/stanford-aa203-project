@@ -153,6 +153,8 @@ def createDynamicsPythonModule(name,
                                threshold=1.0e-3):
     with open(f'SINDy_{name}.py', 'w') as f:
         print('import numpy as np', file=f)
+        print('import jax', file=f)
+        print('import jax.numpy as jnp', file=f)
         print('', file=f)
         print(f'def dynamics(t, s, u):', file=f)
         n_state = len(state_names)
@@ -165,14 +167,26 @@ def createDynamicsPythonModule(name,
             for k in which_terms:
                 expr += '{:.2f}*{} + '.format(coeffs[k,i], terms[k])
             #/
-            expr = expr.replace('cos(', 'np.cos(')
-            expr = expr.replace('sin(', 'np.sin(')
-            expr = expr.replace('tan(', 'np.tan(')
+            expr = expr.replace('cos(', 'jnp.cos(')
+            expr = expr.replace('sin(', 'jnp.sin(')
+            expr = expr.replace('tan(', 'jnp.tan(')
             print(f'\t{state_names[i]}_dot =', expr[:-3], file=f)
         # /for i
-        print('\treturn np.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
+        print('\treturn jnp.array([' + ', '.join(map(lambda s: s+'_dot', state_names)) + '])', file=f)
         print('# /dynamics()', file=f)
         print('', file=f)
+
+        print('def dynamicsJacobianWrtState(t,s,u):', file=f)
+        print('\treturn jax.jacfwd(dynamics, 1) (t,s,u)', file=f)
+        print('# /jacobianState()', file=f)
+        print('', file=f)
+
+        print('def dynamicsJacobianWrtControl(t,s,u):', file=f)
+        print('\treturn jax.jacfwd(dynamics, 2) (t,s,u)', file=f)
+        print('# /jacobianControl()', file=f)
+        print('', file=f)
+    #/ with f
+
 # /createDynamicsPythonModule
 
 if __name__ == "__main__":
