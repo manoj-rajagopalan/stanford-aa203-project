@@ -105,30 +105,19 @@ class DifferentialDriveRobot(Robot):
     def ilqr(self, model, s_goal, duration, dt=0.01):
         self.fsmTransition(FsmState.PLANNING)
         N = int(duration / dt)
-        t_dummy = np.nan # not used
-        f = lambda s,u: s + dt * model.dynamics(t_dummy, s, u)
-        # Linearize model dynamics ODE into Ax + Bu
-        A = model.dynamicsJacobianWrtState
-        B = model.dynamicsJacobianWrtControl
-        # ... and compute approximate Jacobians for transition function
-        f_s = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
-        f_u = lambda s,u: dt * B(s,u)
-        P_N = 5000 * np.eye(model.stateDim())
+        P_N = 500 * np.eye(model.stateDim())
         Q = np.array([np.diag([1,1,1])] * N)
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
         R_k = 5 * np.eye(model.controlDim())
-        R_delta_u = 100 * np.eye(model.controlDim())
+        R_delta_u = 1000 * np.eye(model.controlDim())
         s, u, mat_Ls, vec_ls, metrics_history = \
-            iLQR(f, f_s, f_u,
-                 self.s[-1], s_goal, N,
+            iLQR(model,
+                 self.s[-1], s_goal, N, dt,
                  P_N, Q, R_k, R_delta_u, 100)
         t = np.linspace(0,N,N+1) * dt
         self.setTrajectory(t, s, u)
+        self.drive()
     # /gotoUsingIlqr()
-
-    def render(self, qpainter):
-        if self.fsm_state == FsmState.DRIVING:
-            t_drive = time.time() - self.t_drive_begin
 
     # Draw this instance onto a qpainter
     def renderCanonical(self, qpainter):

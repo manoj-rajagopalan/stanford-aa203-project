@@ -70,19 +70,29 @@ def totalCost(s, u, s_goal, u_bar, N, P_N, Q, R_k, R_delta_u):
     return 0.5 * J
 # /totalCost()
 
-def iLQR(f, df_ds, df_du, s0, s_goal, N, P_N, Q, R_k, R_delta_u, n_iter):
+def iLQR(model, s0, s_goal, N, dt, P_N, Q, R_k, R_delta_u, n_iter):
     '''
-    f: (nonlinear) dynamics function
-    df_ds, df_du: Jacobian of f w.r.t. state and control
+    model: dynamics and jacobians of dynamics
     s0, s_goal: initial and goal states
     N : number of time-steps per episode
     P_N : terminal cost coefficient
     Q_k : state-cost coefficient per-stage
     R_k : control-cost coefficient per-stage
     '''
+    t_dummy = np.nan # not used
+
+    # State-transition function and its Jacobians, from dynamics
+    f = lambda s,u: s + dt * model.dynamics(t_dummy, s, u)
+    # Linearize model dynamics ODE into A*dx + B*du
+    A = model.dynamicsJacobianWrtState
+    B = model.dynamicsJacobianWrtControl
+    # ... and compute approximate Jacobians for transition function
+    df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
+    df_du = lambda s,u: dt * B(s,u)
+
     u_convergence_tol = 1.0e-1
     n_state = len(s_goal)
-    n_control = R_k.shape[0]
+    n_control = R_k.shape[-1]
 
     # Initialize trajectory: nominal and perturbed
     s_bar = np.zeros((N+1, n_state), dtype='float64')
