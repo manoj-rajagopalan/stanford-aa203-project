@@ -62,7 +62,7 @@ class MainWindow(QtWidgets.QMainWindow):
         qpainter.setBrush(bg_brush)
         qpainter.drawRect(0,0, self.label.width(), self.label.height())
 
-        # foreground
+        # loop
         if self.robot.fsm_state == FsmState.IDLE:
             self.robot.drive()
         # /if

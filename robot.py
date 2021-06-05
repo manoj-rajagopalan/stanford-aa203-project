@@ -128,6 +128,18 @@ class Robot:
 
         qpainter.setWorldTransform(original_transform)
         
+        # Overlay elapsed time on top right
+        if self.fsm_state == FsmState.DRIVING:
+            time_str = '{:.2f} s'.format(t_drive)
+            qpainter.translate(qpainter.device().width()-50, 20)
+            qpainter.scale(1, -1)
+            brush = QtGui.QBrush()
+            brush.setColor(QtCore.Qt.red)
+            qpainter.setBrush(brush)
+            # rect = qpainter.window()
+            qpainter.drawText(0, 0, time_str)
+        # /if
+
     # /render()
 
     def plotTrajectory(self, state_plot, control_plot): # override
