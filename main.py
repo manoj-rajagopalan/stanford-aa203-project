@@ -18,6 +18,7 @@ def setup_diff_drive_robot(s0, sf, tf, use_sindy=False):
                                    wheel_thickness=3)
     robot.reset(s0)
     if use_sindy:
+        print('Running SINDy')
         sindy_dyn_module_name = 'SINDy_DiffDriveModel'
         sindy(sindy_dyn_module_name,
               robot,
@@ -32,13 +33,16 @@ def setup_diff_drive_robot(s0, sf, tf, use_sindy=False):
         model = robot.model
     # /if-else
 
+    # print('Running flat-system trajectory generation')
     # robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
     # t = np.linspace(0, tf, 1001)
     # s, u = robot_flat.plan(s0, sf, t)
     # robot.setTrajectory(t, s, u)
     
+    print('Running iLQR')
     robot.ilqr(model, sf, tf)
-    
+
+    print('Done')
     return robot
  # /setup_diff_drive_robot()
 
@@ -95,7 +99,7 @@ def setup_bicycle_robot_2(s0, sf, tf):
 s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, np.deg2rad(179)])
 tf = 10 # s
-robot = setup_diff_drive_robot(s0, sf, tf)
+robot = setup_diff_drive_robot(s0, sf, tf, use_sindy=True)
 # robot = setup_diff_drive_robot_2(s0, sf, tf)
 # robot = setup_bicycle_robot(s0, sf, tf)
 # robot = setup_bicycle_robot_2(s0, sf, tf)
