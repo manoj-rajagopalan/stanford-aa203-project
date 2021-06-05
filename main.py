@@ -16,19 +16,28 @@ def setup_diff_drive_robot(s0, sf, tf):
                                    wheel_radius=6,
                                    wheel_thickness=3)
     robot.reset(*s0)
-    robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
-    t = np.linspace(0, tf, 1001)
-    s, u = robot_flat.plan(s0, sf, t)
-    robot.setTrajectory(t, s, u)
-    # robot.gotoUsingIlqr(sf, tf)
+    # robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
+    # t = np.linspace(0, tf, 1001)
+    # s, u = robot_flat.plan(s0, sf, t)
+    # robot.setTrajectory(t, s, u)
+    robot.gotoUsingIlqr(sf, tf)
     return robot
  # /setup_diff_drive_robot()
 
-# robot = DifferentialDriveEllipseWheelRobot(baseline=250,
-#                                            left_wheel_ellipse=Ellipse(50, 10),
-#                                            right_wheel_ellipse=Ellipse(50, 10),
-#                                            wheel_thickness=5)
-# robot.reset(250, 270, 0, 0, 90)
+def setup_diff_drive_robot_2(s0, sf, tf):
+    robot = DifferentialDriveRobot2(radius=15,
+                                    wheel_radius=6,
+                                    wheel_thickness=3)
+    s0 = np.append(s0,[0,0])
+    sf = np.append(sf,[0,0])
+    robot.reset(*s0)
+    # robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
+    # t = np.linspace(0, tf, 1001)
+    # s, u = robot_flat.plan(s0, sf, t)
+    # robot.setTrajectory(t, s, u)
+    robot.gotoUsingIlqr(sf, tf)
+    return robot
+ # /setup_diff_drive_robot_2()
 
 def setup_bicycle_robot(s0, sf, tf):
     robot = BicycleRobot(wheel_radius=20,
@@ -40,7 +49,7 @@ def setup_bicycle_robot(s0, sf, tf):
     # robot.setTrajectory(t, s, u)
     robot.gotoUsingIlqr(sf, tf)
     return robot
- # /setup_diff_drive_robot()
+ # /setup_bicycle_robot()
 
 def setup_bicycle_robot_2(s0, sf, tf):
     robot = BicycleRobot2(wheel_radius=20,
@@ -54,23 +63,22 @@ def setup_bicycle_robot_2(s0, sf, tf):
     # robot.setTrajectory(t, s, u)
     robot.gotoUsingIlqr(sf, tf)
     return robot
- # /setup_diff_drive_robot()
+ # /setup_bicycle_robot_2()
 
-# robot = DifferentialDriveRobot2(radius=15, wheel_radius=6, wheel_thickness=3)
-# s0 = np.array([40,40,0, 0,0])
-# sf = np.array([600,300,179, 0,0])
-# robot.reset(*s0)
-# t = np.linspace(0,10,101)
-# robot_flat = DifferentialDriveRobot2FlatSystem(robot.r, 2*robot.R)
-# s, u = robot_flat.plan(s0, sf, t, robot.controlLimits())
-# s, u = s.T, u.T
-# robot.setTrajectory(t, s, u[:-1])
-# robot.gotoUsingIlqr(sf, 5)
+###############################################################################
+
+# robot = DifferentialDriveEllipseWheelRobot(baseline=250,
+#                                            left_wheel_ellipse=Ellipse(50, 10),
+#                                            right_wheel_ellipse=Ellipse(50, 10),
+#                                            wheel_thickness=5)
+# robot.reset(250, 270, 0, 0, 90)
+
 
 s0 = np.array([40, 40, 0])
-sf = np.array([600, 300, -179])
+sf = np.array([600, 300, 179])
 tf = 10 # s
-robot = setup_diff_drive_robot(s0, sf, tf)
+# robot = setup_diff_drive_robot(s0, sf, tf)
+robot = setup_diff_drive_robot_2(s0, sf, tf)
 # robot = setup_bicycle_robot(s0, sf, tf)
 # robot = setup_bicycle_robot_2(s0, sf, tf)
 
