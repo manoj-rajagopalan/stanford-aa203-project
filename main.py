@@ -74,12 +74,13 @@ def setup_diff_drive_robot(s0, sf, tf,
     # /if-else
 
     # Trajectory calculation - Diff Flat and/or iLQR
-    N = 1000
+    dt = 0.005
+    N = int(tf / dt)
     t = np.linspace(0, tf, N+1)
     if do_flatsys_init:
         print('Running flat-system trajectory generation')
         robot_flat = DifferentialDriveRobotFlatSystem(*robot.parameters())
-        s_init, u_init = robot_flat.plan(s0, sf, t)
+        s_init, u_init = robot_flat.previewplan(s0, sf, t)
     else:
         u_init = np.zeros((N, model.controlDim()))
         s_init = model.generateTrajectory(t, s0, u_init)
@@ -158,8 +159,8 @@ def setup_bicycle_robot_2(s0, sf, tf):
 app = QtWidgets.QApplication(sys.argv)
 
 s0 = np.array([40, 40, 0])
-sf = np.array([600, 300, np.deg2rad(179)])
-tf = 5 # s
+sf = np.array([600, 300, np.deg2rad(135)])
+tf = 10 # s
 robot, ilqr_metrics = \
     setup_diff_drive_robot(s0, sf, tf,
                            do_sindy=SindyUsage.NONE,
@@ -170,6 +171,7 @@ robot, ilqr_metrics = \
 # robot = setup_bicycle_robot_2(s0, sf, tf)
 
 main_window = MainWindow(800, 800, robot)
+main_window.setGoalPose(sf)
 main_window.show()
 app.exec_()
 
