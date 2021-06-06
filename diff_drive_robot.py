@@ -110,9 +110,9 @@ class DifferentialDriveRobot(Robot):
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model, s_goal,
                  P_N, Q, R_k, R_delta_u,
-                 100,
+                 20,
                  t, s_init, u_init)
-        return mat_Ls, vec_ls, t, s, u
+        return mat_Ls, vec_ls, t, s, u, metrics_history
     # /ilqr()
 
     # Draw this instance onto a qpainter

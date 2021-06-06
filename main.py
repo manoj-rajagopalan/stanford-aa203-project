@@ -1,9 +1,11 @@
+import typing
 from robot import ILQRController, IdleController, ReferenceTrackerController
 import sys
 import enum
 
-from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
+from PyQt5 import QtCore, QtGui, QtWidgets
+from matplotlib import pyplot as plt
 
 from diff_drive_robot import DifferentialDriveRobot, DifferentialDriveRobotFlatSystem
 from diff_drive_robot_2 import DifferentialDriveRobot2, DifferentialDriveRobot2FlatSystem
@@ -21,6 +23,22 @@ class SindyUsage(enum.IntEnum):
     NONE = 0
     OFFLINE = 1
     ONLINE = 2
+#/
+
+def displayIlqrMetrics(metrics):
+    fig, axes = plt.subplots(1,3)
+    fig.suptitle('iLQR Metrics')
+    [ax.set_xlabel('Iteration') for ax in axes]
+    axes[0].set_ylabel('Cost')
+    axes[0].set_yscale('log')
+    axes[0].plot(metrics['cost'])
+    axes[1].set_ylabel('$||\mathbf{s}_f - \mathbf{s}_{goal}||_2$')
+    axes[1].set_yscale('log')
+    axes[1].plot(metrics['sf_norm'])
+    axes[2].set_ylabel('$||\Delta \mathbf{u}||_\infty$')
+    axes[2].plot(metrics['du_norm'])
+    axes[2].set_yscale('log')
+    plt.show()
 #/
 
 def setup_diff_drive_robot(s0, sf, tf,
@@ -67,11 +85,15 @@ def setup_diff_drive_robot(s0, sf, tf,
         s_init = model.generateTrajectory(t, s0, u_init)
     # /if-else use_flatsys_init
     
+    ilqr_metrics = None
+
     if do_ilqr:
         print('Running iLQR')
-        mat_Ls, vec_ls, t, s, u = \
+        mat_Ls, vec_ls, t, s, u, ilqr_metrics = \
             robot.ilqr(model, sf, t, s_init, u_init)
         assert len(t) == len(s) == len(u) # shapes must be equal for rendering
+        # ilqr_metrics_display_thread = IlqrMetricsDisplay(ilqr_metrics_history)
+        # ilqr_metrics_display_thread.start()
         controller = ILQRController(mat_Ls, vec_ls, t,s,u)
     elif do_flatsys_init:
         u_init = np.append([[0,0]], u_init, axis=0) # make shapes equal for rendering
@@ -87,7 +109,7 @@ def setup_diff_drive_robot(s0, sf, tf,
     #/
 
     print('Done')
-    return robot
+    return robot, ilqr_metrics
  # /setup_diff_drive_robot()
 
 def setup_diff_drive_robot_2(s0, sf, tf):
@@ -139,19 +161,24 @@ def setup_bicycle_robot_2(s0, sf, tf):
 #                                            wheel_thickness=5)
 # robot.reset(250, 270, 0, 0, 90)
 
+app = QtWidgets.QApplication(sys.argv)
 
 s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, np.deg2rad(179)])
 tf = 10 # s
-robot = setup_diff_drive_robot(s0, sf, tf,
-                               do_sindy=SindyUsage.NONE,
-                               do_flatsys_init=True,
-                               do_ilqr=False)
+robot, ilqr_metrics = \
+    setup_diff_drive_robot(s0, sf, tf,
+                           do_sindy=SindyUsage.NONE,
+                           do_flatsys_init=False,
+                           do_ilqr=True)
 # robot = setup_diff_drive_robot_2(s0, sf, tf)
 # robot = setup_bicycle_robot(s0, sf, tf)
 # robot = setup_bicycle_robot_2(s0, sf, tf)
 
-app = QtWidgets.QApplication(sys.argv)
 main_window = MainWindow(800, 800, robot)
 main_window.show()
 app.exec_()
+
+if ilqr_metrics is not None:
+    displayIlqrMetrics(ilqr_metrics)
+#/
