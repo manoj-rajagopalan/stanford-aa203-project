@@ -55,7 +55,7 @@ def generateSindyBasisFunctions(t_data, s_data, u_data, verbose=False):
         SindyBasisQuadraticTermsGenerator(n,m),
         SindyBasisSinTermsGenerator(n,m),
         SindyBasisCosTermsGenerator(n,m),
-        SindyBasisTanTermsGenerator(n,m)
+        # SindyBasisTanTermsGenerator(n,m)
     ]
 
     B_cols = sum(map(lambda gen: gen.numTerms(), basis_gens))
@@ -230,7 +230,7 @@ def main():
     robot = DifferentialDriveRobot(radius=15,
                                    wheel_radius=6,
                                    wheel_thickness=3)
-    robot.reset(40, 40, 0)
+    robot.reset(np.array([40, 40, 0]))
 
     # robot = DifferentialDriveRobot2(radius=15,
     #                                 wheel_radius=6,
@@ -246,7 +246,7 @@ def main():
     n_control_samples = 5000
     n_state_samples_per_control = 10
     dt = 0.001
-    threshold = 1.0e-2 # below which coeffs are negligible
+    threshold = 0.05 # below which coeffs are negligible
 
     sindy('SINDy_DiffDriveModel', robot,
           n_control_samples, n_state_samples_per_control, dt,
