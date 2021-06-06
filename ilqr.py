@@ -96,8 +96,10 @@ def iLQR(model, s_goal,
     df_ds = lambda s,u: np.eye(model.stateDim()) + dt * A(s,u)
     df_du = lambda s,u: dt * B(s,u)
 
-    s = s_bar.copy() # initial perturbations are zero
     u = u_bar.copy()
+    # regenerate s_bar because of numerical differences in integration model
+    s_bar = model.generateTrajectory(t, s_bar[0], u_bar)
+    s = s_bar.copy()
 
     n_state = model.stateDim()
     n_control = model.controlDim()
@@ -108,7 +110,7 @@ def iLQR(model, s_goal,
     sf_norm_history = np.zeros_like(cost_history)
     du_norm_history = np.zeros_like(cost_history)
 
-    u_convergence_tol = 1.0e-1
+    convergence_tol = 0.1
 
     for iter in range(n_iter):
 
@@ -146,7 +148,7 @@ def iLQR(model, s_goal,
         print('Episode {} cost = {} ||s_N - s*||_2 = {} ||delta_u||_inf = {}'
               .format(iter, cost_history[iter], sf_norm_history[iter], du_norm_history[iter]))
 
-        if du_norm_history[iter] < u_convergence_tol:
+        if sf_norm_history[iter] < convergence_tol and du_norm_history[iter] < convergence_tol:
             break
         else:
             s_bar = s.copy()
