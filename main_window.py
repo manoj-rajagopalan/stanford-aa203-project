@@ -42,6 +42,9 @@ class MainWindow(QtWidgets.QMainWindow):
         plots_vlayout.addWidget(self.control_plot)
         hlayout.addItem(plots_vlayout)
         
+        shortcut_replay = QtWidgets.QShortcut(QtGui.QKeySequence('Ctrl+R'), self)
+        shortcut_replay.activated.connect(self.replay)
+
         central_widget = QtWidgets.QWidget()
         central_widget.setLayout(hlayout)
         self.setCentralWidget(central_widget)
@@ -59,6 +62,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.render_timer.start(25) # ms => 40 fps
     # /setupAnimation()
 
+    def replay(self):
+        self.robot.drive()
+    #/
+
     def render(self):
         qpainter = QtGui.QPainter(self.label.pixmap())
 
@@ -75,7 +82,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.state_plot.angle_axes.cla()
             self.control_plot.distance_axes.cla()
             self.control_plot.angle_axes.cla()
-            self.robot.drive()
         # /if
 
         # screen coords (top left, downwards) -> math coords (bottom left, upwards)

@@ -155,12 +155,6 @@ def setup_bicycle_robot_2(s0, sf, tf):
 
 ###############################################################################
 
-# robot = DifferentialDriveEllipseWheelRobot(baseline=250,
-#                                            left_wheel_ellipse=Ellipse(50, 10),
-#                                            right_wheel_ellipse=Ellipse(50, 10),
-#                                            wheel_thickness=5)
-# robot.reset(250, 270, 0, 0, 90)
-
 app = QtWidgets.QApplication(sys.argv)
 
 s0 = np.array([40, 40, 0])
