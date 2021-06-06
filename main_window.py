@@ -1,3 +1,5 @@
+import math
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -16,6 +18,7 @@ class XyPlot(MplFigCanvas):
         super().__init__(fig)
         self.setParent(parent)
         self.setUpdatesEnabled(True)
+        self.s_goal = None
     # /__init__()
 # /class XyPlot
 
@@ -66,6 +69,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.robot.drive()
     #/
 
+    def setGoalPose(self, s_goal):
+        self.s_goal = s_goal
+    #/
+
     def render(self):
         qpainter = QtGui.QPainter(self.label.pixmap())
 
@@ -76,24 +83,49 @@ class MainWindow(QtWidgets.QMainWindow):
         qpainter.setBrush(bg_brush)
         qpainter.drawRect(0,0, self.label.width(), self.label.height())
 
-        # loop
-        if self.robot.fsm_state == FsmState.IDLE:
-            self.state_plot.distance_axes.cla()
-            self.state_plot.angle_axes.cla()
-            self.control_plot.distance_axes.cla()
-            self.control_plot.angle_axes.cla()
-        # /if
+        # clear graphs if idle (ineffective?)
+        # if self.robot.fsm_state == FsmState.IDLE:
+        #     self.state_plot.distance_axes.cla()
+        #     self.state_plot.angle_axes.cla()
+        #     self.control_plot.distance_axes.cla()
+        #     self.control_plot.angle_axes.cla()
+        # # /if
 
         # screen coords (top left, downwards) -> math coords (bottom left, upwards)
         qpainter.translate(0, self.label.height()-1)
         qpainter.scale(1, -1)
-
+        if self.robot.controller.isFinished():
+            self.renderGoal(qpainter)
+            self.robot.plotTrajectory(self.state_plot, self.control_plot)
+        #/
         self.robot.render(qpainter)
 
         qpainter.end()
 
-        self.robot.plotTrajectory(self.state_plot, self.control_plot)
         self.update()
     # /render()
 
+    def renderGoal(self, qpainter):
+        if self.s_goal is None:
+            return
+        #/
+        brush = QtGui.QBrush()
+        brush.setStyle(QtCore.Qt.SolidPattern)
+        brush.setColor(QtCore.Qt.green)
+        qpainter.setBrush(brush)
+        x, y, θ = self.s_goal
+        l = 50
+        dx = l  * math.cos(θ)
+        dy = l  * math.sin(θ)
+        qpainter.drawEllipse(QtCore.QPoint(x, y), 20, 20)
+        original_pen = qpainter.pen()
+        pen = QtGui.QPen()
+        pen.setColor(QtCore.Qt.green)
+        pen.setWidth(5)
+        qpainter.setPen(pen)
+        qpainter.drawLine(x, y, x+dx, y+dy)
+        qpainter.setPen(original_pen)
+
+        self.robot.render(qpainter)
+    #/
 # /class MainWindow

@@ -117,8 +117,10 @@ class Robot:
 
     def reset(self, s0):
         self.s = s0[np.newaxis,:]
+        print('reset: s0 =', self.s[0])
         self.u = np.zeros((1,self.model.controlDim()))
         self.t = np.array([0])
+        self.update_counter = 0
         self.fsmTransition(FsmState.IDLE)
         self.controller = self.idle_controller
     #/
@@ -187,9 +189,11 @@ class Robot:
     #/
 
     def drive(self):
-        self.s = self.s[0][np.newaxis,:]
-        self.u = np.zeros((1,self.model.controlDim()))
-        self.t = np.array([0])
+        self.s = np.resize(self.s, (1000, self.s.shape[1]))
+        print('drive: s0 =', self.s[0])
+        self.u = np.zeros((1000,self.model.controlDim()))
+        self.t = np.zeros(1000)
+        self.update_counter = 0
         self.t0 = time.time()
         self.controller.reset()
         self.fsmTransition(FsmState.DRIVING)
@@ -197,18 +201,27 @@ class Robot:
 
     def update(self):
         if self.fsm_state == FsmState.DRIVING:
+            k = self.update_counter
+            # print('update_counter =', k)
+            self.update_counter += 1
+            if self.update_counter >= len(self.t):
+                print('update: s0 =', self.s[0])
+                self.s = np.resize(self.s, (self.s.shape[0]+1000, self.s.shape[1]))
+                self.u = np.resize(self.u, (self.u.shape[0]+1000, self.u.shape[1]))
+                self.t = np.resize(self.t, len(self.t)+1000)
+            #/
             t = time.time() - self.t0
             if self.controller.__class__ == ReferenceTrackerController:
-                s = self.controller(self.s[-1], self.t[-1])
+                s = self.controller(self.s[k], self.t[k])
                 u = np.zeros(self.model.controlDim())
             else:
-                dt = t - self.t[-1]
-                s = self.applyControl(dt, self.s[-1], self.u[-1])
+                dt = t - self.t[k]
+                s = self.applyControl(dt, self.s[k], self.u[k])
                 u = self.controller(s, t)
             # /if-else
-            self.t = np.append(self.t, t)
-            self.s = np.append(self.s, s[np.newaxis,:], axis=0)
-            self.u = np.append(self.u, u[np.newaxis,:], axis=0)
+            self.t[self.update_counter] = t
+            self.s[self.update_counter] = s
+            self.u[self.update_counter] = u
             if self.controller.isFinished():
                 self.fsmTransition(FsmState.IDLE)
             #/
@@ -220,7 +233,7 @@ class Robot:
         if self.s is None:
             return None
         else:
-            return self.s[-1, 0:3]
+            return self.s[self.update_counter, 0:3]
         #/
     # /
 
@@ -246,7 +259,7 @@ class Robot:
         
         # Overlay elapsed time on top right
         if self.fsm_state == FsmState.DRIVING:
-            time_str = '{:.2f} s'.format(self.t[-1])
+            time_str = '{:.2f} s'.format(self.t[self.update_counter])
             original_transform = qpainter.worldTransform()
             qpainter.translate(qpainter.device().width()-50, 20)
             qpainter.scale(1, -1)

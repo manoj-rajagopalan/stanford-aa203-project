@@ -103,14 +103,14 @@ class DifferentialDriveRobot(Robot):
         self.fsmTransition(FsmState.PLANNING)
         N = len(t) - 1
         P_N = 5000 * np.eye(model.stateDim())
-        Q = np.array([np.diag([1,1,1])] * N)
+        Q =  1 * np.array([np.diag([1,1,1])] * N)
         # Q = np.eye(3) + (np.arange(N)/N)[:, np.newaxis, np.newaxis] * 0.01*P_N[np.newaxis, :, :]
-        R_k = 5 * np.eye(model.controlDim())
+        R_k = 100 * np.eye(model.controlDim())
         R_delta_u = 100 * np.eye(model.controlDim())
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model, s_goal,
                  P_N, Q, R_k, R_delta_u,
-                 500,
+                 200,
                  t, s_init, u_init)
         return mat_Ls, vec_ls, t, s, u, metrics_history
     # /ilqr()
@@ -147,19 +147,22 @@ class DifferentialDriveRobot(Robot):
             return
         state_plot.distance_axes.cla()
         state_plot.distance_axes.set_ylabel('$x$, $y$')
-        state_plot.distance_axes.plot(self.t, self.s[:,0], 'r', label='$x$')
-        state_plot.distance_axes.plot(self.t, self.s[:,1], 'g', label='$y$')
+        t = self.t[:self.update_counter+1]
+        s = self.s[:self.update_counter+1]
+        u = self.u[:self.update_counter+1]
+        state_plot.distance_axes.plot(t, s[:,0], 'r', label='$x$')
+        state_plot.distance_axes.plot(t, s[:,1], 'g', label='$y$')
         state_plot.distance_axes.legend()
         state_plot.angle_axes.cla()
         state_plot.angle_axes.set_ylabel('$\\theta$ (deg)')
-        state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\\theta$')
+        state_plot.angle_axes.plot(t, np.rad2deg(s[:,2]), 'b', label='$\\theta$')
         state_plot.angle_axes.legend()
         state_plot.draw()
 
         control_plot.angle_axes.cla()
         control_plot.angle_axes.set_ylabel('$\\omega_l$, $\\omega_r$ (deg/s)')
-        control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
-        control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
+        control_plot.angle_axes.plot(t, np.rad2deg(u[:,0]), 'r', label='$\\omega_l$')
+        control_plot.angle_axes.plot(t, np.rad2deg(u[:,1]), 'g', label='$\\omega_r$')
         control_plot.angle_axes.legend()
         control_plot.draw()
 
