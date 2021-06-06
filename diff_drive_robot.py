@@ -110,7 +110,7 @@ class DifferentialDriveRobot(Robot):
         s, u, mat_Ls, vec_ls, metrics_history = \
             iLQR(model, s_goal,
                  P_N, Q, R_k, R_delta_u,
-                 20,
+                 500,
                  t, s_init, u_init)
         return mat_Ls, vec_ls, t, s, u, metrics_history
     # /ilqr()
@@ -149,15 +149,18 @@ class DifferentialDriveRobot(Robot):
         state_plot.distance_axes.set_ylabel('$x$, $y$')
         state_plot.distance_axes.plot(self.t, self.s[:,0], 'r', label='$x$')
         state_plot.distance_axes.plot(self.t, self.s[:,1], 'g', label='$y$')
+        state_plot.distance_axes.legend()
         state_plot.angle_axes.cla()
         state_plot.angle_axes.set_ylabel('$\\theta$ (deg)')
-        state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\theta$')
+        state_plot.angle_axes.plot(self.t, np.rad2deg(self.s[:,2]), 'b', label='$\\theta$')
+        state_plot.angle_axes.legend()
         state_plot.draw()
 
         control_plot.angle_axes.cla()
         control_plot.angle_axes.set_ylabel('$\\omega_l$, $\\omega_r$ (deg/s)')
         control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,0]), 'r', label='$\\omega_l$')
         control_plot.angle_axes.plot(self.t, np.rad2deg(self.u[:,1]), 'g', label='$\\omega_r$')
+        control_plot.angle_axes.legend()
         control_plot.draw()
 
     # /plotTrajectory()

@@ -159,7 +159,7 @@ app = QtWidgets.QApplication(sys.argv)
 
 s0 = np.array([40, 40, 0])
 sf = np.array([600, 300, np.deg2rad(179)])
-tf = 10 # s
+tf = 5 # s
 robot, ilqr_metrics = \
     setup_diff_drive_robot(s0, sf, tf,
                            do_sindy=SindyUsage.NONE,
