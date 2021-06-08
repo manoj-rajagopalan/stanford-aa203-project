@@ -17,7 +17,7 @@ import SINDy_DiffDriveModel
 
 from fsm_state import FsmState
 from main_window import MainWindow
-from sindy.sindy import sindy
+from sindy.run_sindy import sindy
 
 class SindyUsage(enum.IntEnum):
     NONE = 0
